@@ -33,7 +33,7 @@ This ROS package provides a low-latency video streaming framework. It handles co
       sudo apt-get install libgstrtspserver-1.0-dev -y
       ```
     * [PahoMqttCpp](https://github.com/eclipse/paho.mqtt.cpp)  
-    Install instructions can be found in the [tod_network](https://gitlab.lrz.de/teleoperiertes_fahren/tod_common/-/blob/develop/tod_network/) package.
+    Install instructions can be found in the [tod_network](https://github.com/TUMFTM/tod_common/tree/master/tod_network) package.
     * [Qt5](https://www.qt.io/) (Widgets Core)
       ```
       sudo apt-get install qt5-default qt5-qmake qtbase5-dev-tools qt5-doc -y
@@ -43,14 +43,14 @@ This ROS package provides a low-latency video streaming framework. It handles co
 ### Documentation
 More details on the modes and underlying concepts of the video streaming framework can be found in the publication. 
 
-The nodes of the package and their functionalities are documented in the README under [src/](https://gitlab.lrz.de/teleoperiertes_fahren/tod_perception/-/blob/develop/tod_video/src/).
+The nodes of the package and their functionalities are documented in the README under [src/](https://github.com/TUMFTM/tod_perception/tree/master/tod_video/src).
 
 
 ### Quick Start
-  * Follow the instructions in the container repository [teleoperated_driving](https://gitlab.lrz.de/teleoperiertes_fahren/tof/-/blob/develop/)
+  * Follow the instructions in the container repository [teleoperated_driving](https://github.com/TUMFTM/teleoperated_driving/tree/master)
   to clone and initialize the submodules.
   * Create the config of your camera system, following the instructions in the
-  [tod_vehicle_config](https://gitlab.lrz.de/teleoperiertes_fahren/tod_vehicle_interface/-/blob/develop/tod_vehicle_config/) package.
+  [tod_vehicle_config](https://github.com/TUMFTM/tod_vehicle_interface/tree/master/tod_vehicle_config) package.
   * Install the `tod_video` dependencies and those of the required `tod_*` packages (see above). 
   * Build and source the workspace.
     ```
@@ -88,13 +88,5 @@ The nodes of the package and their functionalities are documented in the README 
 
 
 ### Publication
-The preprint of the publication, submitted to the Intelligent Vehicles Symposium 2021, is available on arXiv.
+*todo*
 
-    @misc{schimpe2020steer,
-          title={Steer with Me: A Predictive, Potential Field-Based Control Approach for Semi-Autonomous, Teleoperated Road Vehicles},
-          author={Andreas Schimpe and Frank Diermeyer},
-          year={2020},
-          eprint={2006.15718},
-          archivePrefix={arXiv},
-          primaryClass={cs.RO}
-    }
