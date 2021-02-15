@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<launch>
+
+<arg name="vehicleID" default="tum-q7"/>
+<arg name="adaptVideoParamsEnabled" default="false"/>
+<arg name="imageOutputFormat" default="rgb8"/> <!--i420, rgb8, yuv422, bgr8, bgra8, mono8-->
+
+
+<group ns="/Operator/Video">
+<node name="RtspClients" type="OperatorRtspClients" pkg="tod_video" output="screen">
+    <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-camera.yaml" />
+    <param name="debug" value="false"/>
+    <param name="imageOutputFormat" value="$(arg imageOutputFormat)"/>
+</node> 
+
+<node name="SceneManager" type="OperatorSceneManager" pkg="tod_video" output="screen">
+    <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-camera.yaml"/>
+    <param name="adaptVideoParamsEnabled" value="$(arg adaptVideoParamsEnabled)"/>
+</node>
+
+<node name="BitrateIntegrator" type="OperatorBitrateIntegrator" pkg="tod_video" output="screen">
+    <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-camera.yaml"/>
+</node>
+
+<node name="VideoConfigSend" type="OperatorVideoConfigSend" pkg="tod_video" output="screen"
+    if="$(eval adaptVideoParamsEnabled)">
+    <param name="debug" value="false"/>
+</node>
+
+<node name="BitrateConfigSend" type="OperatorBitrateConfigSend" pkg="tod_video" output="screen"
+    if="$(eval adaptVideoParamsEnabled)">
+    <param name="debug" value="false"/>
+</node>
+
+<node name="BitratePredictionReceiver" type="BitratePredictionReceiver" pkg="tod_network" output="screen"
+    if="$(eval adaptVideoParamsEnabled)"/>
+
+</group> <!--group: /Operator/Video-->
+
+</launch>

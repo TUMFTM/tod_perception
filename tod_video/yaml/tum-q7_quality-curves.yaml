@@ -1,0 +1,66 @@
+# NOTES
+# exact camera names are used in transform tree, ros image topics etc.
+
+CameraFrontCenter:
+  raw_width: 960 # binning by 2 happens in camera
+  raw_height: 520
+  scalings: [0p250, 0p500, 1p000]
+  resolution_widths: [240, 480, 960]
+  resolution_heights: [130, 260, 520]
+  transition_bitrates: [200, 450, 5000] # in kbit/s - last entry: maximum bitrate
+
+CameraRearCenter:
+  raw_width: 1920
+  raw_height: 1200
+  scalings: [0p125, 0p250, 0p500]
+  resolution_widths: [240, 480, 960]
+  resolution_heights: [150, 300, 600]
+  transition_bitrates: [400, 1800, 4000]
+
+CameraFrontLeft:
+  raw_width: 960 # binning by 2 happens in camera
+  raw_height: 520
+  scalings: [0p250, 0p500, 1p000]
+  resolution_widths: [240, 480, 960]
+  resolution_heights: [130, 260, 520]
+  transition_bitrates: [300, 650, 6000]
+
+CameraFrontRight:
+  raw_width: 960 # binning by 2 happens in camera
+  raw_height: 520
+  scalings: [0p250, 0p500, 1p000]
+  resolution_widths: [240, 480, 960]
+  resolution_heights: [130, 260, 520]
+  transition_bitrates: [300, 650, 6000]
+
+CameraTopViewFront:
+  raw_width: 1280
+  raw_height: 800
+  scalings: [0p250, 0p375, 0p500]
+  resolution_widths: [320, 480, 640]
+  resolution_heights: [200, 300, 400]
+  transition_bitrates: [150, 400, 3000]
+
+CameraTopViewRear:
+  raw_width: 1280
+  raw_height: 800
+  scalings: [0p250, 0p375, 0p500]
+  resolution_widths: [320, 480, 640]
+  resolution_heights: [200, 300, 400]
+  transition_bitrates: [200, 400, 3000]
+
+CameraTopViewLeft:
+  raw_width: 1280
+  raw_height: 800
+  scalings: [0p250, 0p375, 0p500]
+  resolution_widths: [320, 480, 640]
+  resolution_heights: [200, 300, 400]
+  transition_bitrates: [150, 400, 3000]
+
+CameraTopViewRight:
+  raw_width: 1280
+  raw_height: 800
+  scalings: [0p250, 0p375, 0p500]
+  resolution_widths: [320, 480, 640]
+  resolution_heights: [200, 300, 400]
+  transition_bitrates: [150, 400, 3000]
