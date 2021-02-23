@@ -32,7 +32,7 @@ This ROS package provides a low-latency video streaming framework. It handles co
       sudo apt-get install libgstreamer-plugins-base1.0-dev -y
       sudo apt-get install libgstrtspserver-1.0-dev -y
       ```
-    * [PahoMqttCpp](https://github.com/eclipse/paho.mqtt.cpp)  
+    * [PahoMqttCpp](https://github.com/eclipse/paho.mqtt.cpp)
     Install instructions can be found in the [tod_network](https://github.com/TUMFTM/tod_common/tree/master/tod_network) package.
     * [Qt5](https://www.qt.io/) (Widgets Core)
       ```
@@ -41,7 +41,7 @@ This ROS package provides a low-latency video streaming framework. It handles co
 
 
 ### Documentation
-More details on the modes and underlying concepts of the video streaming framework can be found in the publication. 
+More details on the modes and underlying concepts of the video streaming framework can be found in the publication, linked below. 
 
 The nodes of the package and their functionalities are documented in the README under [src/](https://github.com/TUMFTM/tod_perception/tree/master/tod_video/src).
 
@@ -84,9 +84,18 @@ The nodes of the package and their functionalities are documented in the README 
   * To make full use of the video streaming framework (set ip addresses, connect via gui, adapt video stream parameters, switch between the video rate control modes, ...),
   the `tod_manager` package is required. 
 
-*Note (Feb. 11, 2021):* The `tod_manager` package will be published in the coming weeks.
+*Note (February 2021):* The `tod_manager` package will be published in the coming weeks.
 
 
 ### Publication
-*todo*
+The preprint of the paper submitted to the IEEE is available on [arXiv](https://arxiv.org/abs/2102.10898).
+
+    @misc{schimpe2021adaptive,
+        title={Adaptive Video Configuration and Bitrate Allocation for Teleoperated Driving}, 
+        author={Andreas Schimpe and Simon Hoffmann and Frank Diermeyer},
+        year={2021},
+        eprint={2102.10898},
+        archivePrefix={arXiv},
+        primaryClass={eess.IV}
+    }
 
