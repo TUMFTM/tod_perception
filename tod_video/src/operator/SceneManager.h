@@ -11,9 +11,7 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include "tod_msgs/StatusMsg.h"
-#include "tod_msgs/connectionStatus.h"
-#include "tod_msgs/controlMode.h"
+#include "tod_msgs/Status.h"
 #include "tod_video/ClientConfig.h"
 #include "tod_video/VideoConfig.h"
 #include "tod_video/BitrateConfig.h"
@@ -53,12 +51,12 @@ private:
     std::shared_ptr<Streamable> _selectedStreamable{nullptr};
     QApplication &_app;
     Ui::MainWindow *_ui;
-    VideoRateControlMode _vidRateControlMode{VideoRateControlMode::SINGLE};
+    uint8_t _vidRateControlMode{tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE};
     int _bitrateSum{0};
     bool _connected{false};
     bool _adaptVideoParamsEnabled{false};
 
-    void callback_status_msg(const tod_msgs::StatusMsg &msg);
+    void callback_status_msg(const tod_msgs::Status &msg);
     void change_select_button_color(std::shared_ptr<Streamable> streamable, bool select);
     void set_reconfigure_fields_of_selected_stream();
     void reset_reconfigure_fields();

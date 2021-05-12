@@ -13,11 +13,44 @@ BandwidthManager::BandwidthManager(ros::NodeHandle &n)
     std::string topicStatus{"/Vehicle/Manager/status_msg"};
     _subStatus = _nodeHandle.subscribe(topicStatus, 5, &BandwidthManager::callback_status_msg, this);
 
+    std::string vehicleID{""};
+    if (!_nodeHandle.getParam(_nodeName + "/vehicleID", vehicleID))
+        ROS_ERROR("%s: Could not get param vehicleID", _nodeName.c_str());
+
     // parse parameter server and initialize streams to reconfigure
     for (int i=0; i <= 10; ++i) {
         std::string name{""};
-        if (n.getParam(std::string(_nodeName + "/camera" + std::to_string(i) + "/name"), name)) {
-            initialize_stream_to_reconfigure(name);
+        const std::string ns{_nodeName + "/camera" + std::to_string(i)};
+        if (n.getParam(ns + "/name", name)) {
+            auto stream = _streams.emplace_back(std::make_shared<VideoStream>(name));
+            ROS_DEBUG("%s: Initializing stream to reconfigure for %s",
+                      _nodeName.c_str(), name.c_str());
+
+            // raw image dimensions
+            bool isFisheye{false};
+            if (!_nodeHandle.getParam(ns + "/is_fisheye", isFisheye))
+                ROS_ERROR("%s: Could not get param is_fisheye for %s", _nodeName.c_str(), name.c_str());
+            if (isFisheye) {
+                OcamModel mdl(name, vehicleID);
+                stream->rawWidth = mdl.width_raw;
+                stream->rawHeight = mdl.height_raw;
+            } else {
+                PinholeModel mdl(name, vehicleID);
+                stream->rawWidth = mdl.width_raw;
+                stream->rawHeight = mdl.height_raw;
+            }
+
+            // video quality models
+            if (!_nodeHandle.getParam(ns + "/transition_bitrates", stream->transitionBitrates))
+                stream->transitionBitrates.push_back(10000); // default
+            if (!_nodeHandle.getParam(ns + "/scalings", stream->scalings))
+                stream->scalings.emplace_back(tod_video::Video_1p000); // default
+            // validate
+            if (stream->transitionBitrates.size() != stream->scalings.size()) {
+                ROS_ERROR("%s: received vectors of unequal sizes (%d,%d) for %s quality curve",
+                          _nodeName.c_str(), stream->transitionBitrates.size(),
+                          stream->scalings.size(), name.c_str());
+            }
         }
     }
 
@@ -29,35 +62,11 @@ void BandwidthManager::run() {
     ros::spin();
 }
 
-void BandwidthManager::initialize_stream_to_reconfigure(const std::string &name) {
-    ROS_DEBUG("%s: Initializing stream to reconfigure for %s",
-              _nodeName.c_str(), name.c_str());
-    auto stream = _streams.emplace_back(std::make_shared<VideoStream>(name));
-
-    // get quality curves from parameter server
-    std::string ns{_nodeName + "/" + _streams.back()->name};
-    if (!_nodeHandle.getParam(ns + "/transition_bitrates", stream->transitionBitrates)
-        || !_nodeHandle.getParam(ns + "/scalings", stream->scalings)
-        || !_nodeHandle.getParam(ns + "/raw_width", stream->rawWidth)
-        || !_nodeHandle.getParam(ns + "/raw_height", stream->rawHeight)) {
-        ROS_ERROR("%s: Could not get one of params transition_bitrates, scalings,"
-                  " raw_width/_height for %s!", _nodeName.c_str(), name.c_str());
-    }
-
-    // validation check
-    if (_streams.back()->transitionBitrates.size() != _streams.back()->scalings.size()) {
-        ROS_ERROR("%s: received vectors of unequal sizes (%d,%d) for %s quality curve",
-                  _nodeName.c_str(), stream->transitionBitrates.size(),
-                  stream->scalings.size(), name.c_str());
-    }
-}
-
-void BandwidthManager::callback_status_msg(const tod_msgs::StatusMsg &msg) {
+void BandwidthManager::callback_status_msg(const tod_msgs::Status &msg) {
     static bool connectedPrevious{false};
-    _connected = (msg.tod_status != ConnectionStatus::IDLE);
-    VideoRateControlMode newVidCtrlMode = VideoRateControlMode(msg.operator_video_rate_mode);
-    if ((_connected && !connectedPrevious) ||
-        entered_control_mode_collective_or_automatic(newVidCtrlMode)) {
+    _connected = (msg.tod_status != tod_msgs::Status::TOD_STATUS_IDLE);
+    uint8_t newVidCtrlMode = msg.operator_video_rate_mode;
+    if ((_connected && !connectedPrevious) || entered_control_mode_collective_or_automatic(newVidCtrlMode)) {
         ros::Duration(1.0).sleep(); // on connect, sleep to give clients time to connect
         // request current cropping on on/off setting from all cameras
         ROS_DEBUG("%s: video rate control mode %d engaged",
@@ -92,7 +101,7 @@ void BandwidthManager::callback_bitrate_config(tod_video::BitrateConfig &bitrate
 
     static tod_video::BitrateConfig oldConfig;
     ROS_DEBUG("%s: received new bitrate prediction of %d", _nodeName.c_str(), bitrateCfg.bitrate);
-    if (!_connected || _currentVidCtrlMode == VideoRateControlMode::SINGLE) {
+    if (!_connected || _currentVidCtrlMode == tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE) {
         // catch cases which should not happen
         ROS_WARN("%s: ignoring reconfig req - not connected to operator or in mode single",
                  _nodeName.c_str());
@@ -180,8 +189,8 @@ tod_video::VideoConfig BandwidthManager::reconfig_stream(const tod_video::VideoC
     actCfg.__fromMessage__(resp.config);
     return actCfg;
 }
-bool BandwidthManager::entered_control_mode_collective_or_automatic(const VideoRateControlMode newMode) {
-    return ( (_currentVidCtrlMode == VideoRateControlMode::SINGLE) &&
-            ( (newMode == VideoRateControlMode::AUTOMATIC)
-             || (newMode == VideoRateControlMode::COLLECTIVE) ) );
+bool BandwidthManager::entered_control_mode_collective_or_automatic(const uint8_t newMode) {
+    return ( (_currentVidCtrlMode == tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE) &&
+            ( (newMode == tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_AUTOMATIC)
+             || (newMode == tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_COLLECTIVE) ) );
 }

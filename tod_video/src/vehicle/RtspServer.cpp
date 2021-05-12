@@ -24,19 +24,19 @@ RtspServer::RtspServer(ros::NodeHandle &n) : _nodeHandle(n) {
         std::string name{""};
         if (n.getParam(std::string(_nodeName + "/camera" + std::to_string(i) + "/name"), name)) {
             // initialize an RtspStream for each camera name received
-            _streams.emplace_back(std::make_shared<RtspStream>(name, _defaultBitrate));
-            std::string topic{topicNamespace + "/" + name + imageName};
-            _streams.back()->subsImg =
+            auto stream = _streams.emplace_back(std::make_shared<RtspStream>(name, _defaultBitrate));
+            std::string topic{topicNamespace + name + imageName};
+            stream->subsImg =
                 n.subscribe<sensor_msgs::Image>(
-                    topic, 1, boost::bind(&RtspServer::callback_raw_image, this, _1, _streams.back()));
+                    topic, 1, boost::bind(&RtspServer::callback_raw_image, this, _1, stream));
         }
     }
     ROS_DEBUG("%s: Got %d cameras to stream", _nodeName.c_str(), _streams.size());
 
     _reconfigServer.setCallback(boost::bind(&RtspServer::callback_stream_reconfig, this, _1, _2));
-    _subsStatus = n.subscribe<tod_msgs::StatusMsg>(
+    _subsStatus = n.subscribe<tod_msgs::Status>(
         "/Vehicle/Manager/status_msg", 5, [&](const auto &msg) {
-            _connected = (msg->tod_status != ConnectionStatus::IDLE);
+            _operatorConnected = (msg->tod_status != tod_msgs::Status::TOD_STATUS_IDLE);
         });
 
     gst_init(0, 0);
@@ -58,8 +58,7 @@ void RtspServer::run() {
             if (stream->newDataAvailable) {
                 if (!stream->factory)
                     factory_gst_video_pipeline(stream, gstMounts);
-                if (stream->needData && stream->newDataAvailable
-                    && _connected && stream->clientConnected) {
+                if (stream->needData) {
                     push_data(stream);
                 } else if (ros::Time::now() >= stream->lastNeedDataStamp + ros::Duration(3.0)
                            && !stream->currentConfig.paused) {
@@ -69,14 +68,14 @@ void RtspServer::run() {
                 }
             }
 
-            static bool connectedPrevious{false};
-            if (connectedPrevious && !_connected) {
+            static bool operatorConnectedPrevious{false};
+            if (operatorConnectedPrevious && !_operatorConnected) {
                 for (auto stream : _streams) {
                     // reset stream settings on disconnect
                     stream->reset(_defaultBitrate);
                 }
             }
-            connectedPrevious = _connected;
+            operatorConnectedPrevious = _operatorConnected;
         }
     }
     g_main_loop_quit(gstLoop);
@@ -105,15 +104,18 @@ void RtspServer::factory_gst_video_pipeline(std::shared_ptr<RtspStream> stream, 
                      stream.get());
 
     // attach factory to url
-    gst_rtsp_mount_points_add_factory(
-        _gstMounts, std::string("/" + stream->name).c_str(), stream->factory);
+    gst_rtsp_mount_points_add_factory(_gstMounts, stream->name.c_str(), stream->factory);
 
     stream->reset(_defaultBitrate); // video settings to default
+
+    std::string url{"rtsp://127.0.0.1:" + std::to_string(tod_network::VehiclePorts::RX_VIDEO_RTSP)
+                    + stream->name};
+    ROS_INFO("%s: Stream of size (%dx%d) and encoding %s available at %s", _nodeName.c_str(),
+             stream->rawWidth, stream->rawHeight, stream->encoding.c_str(), url.c_str());
 }
 
 void RtspServer::push_data(std::shared_ptr<RtspStream> stream) {
     std::lock_guard lock(stream->mutex);
-    ros::Time t0 = ros::Time::now();
     // put image data to buffer and push to pipeline
     GstBuffer *buffer = gst_buffer_new_wrapped_full(
         (GstMemoryFlags) 0, (gpointer) &stream->imgData.at(0),
@@ -192,7 +194,6 @@ void RtspServer::media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *med
     gst_object_unref(stream->encoder);
     gst_object_unref(element);
 
-    stream->clientConnected = true;
     ROS_INFO("%s: Cient connected for %s in GStreamer image format %s!",
              ros::this_node::getName().c_str(), stream->subsImg.getTopic().c_str(),
              format.c_str());
@@ -201,12 +202,6 @@ void RtspServer::media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *med
 void RtspServer::callback_raw_image(const sensor_msgs::ImageConstPtr& msg,
                                     std::shared_ptr<RtspStream> stream) {
     std::lock_guard lock(stream->mutex);
-    if (stream->rawStep != msg->step || stream->encoding != msg->encoding ||
-        stream->rawWidth != msg->width || stream->rawHeight != msg->height) {
-        ROS_INFO("%s: Received new image for %s with size %dx%d and encoding %s",
-                 _nodeName.c_str(), stream->name.c_str(), msg->width, msg->height,
-                 msg->encoding.c_str());
-    }
     if (stream->newDataAvailable && stream->currentConfig.paused)
         return; // no unnecessary copies
     stream->rawHeight = msg->height;
@@ -245,12 +240,6 @@ void RtspServer::callback_stream_reconfig(tod_video::VideoConfig &config, uint32
         return;
     }
 
-    if (!stream2reconfigure->clientConnected) {
-        ROS_ERROR("%s: ignoring request to reconfigure %s as no client is connected",
-                  _nodeName.c_str(), stream2reconfigure->name.c_str());
-        return;
-    }
-
     if (config.bitrate != stream2reconfigure->currentConfig.bitrate)
         set_bitrate(config, stream2reconfigure);
 
@@ -270,6 +259,11 @@ void RtspServer::callback_stream_reconfig(tod_video::VideoConfig &config, uint32
 }
 
 void RtspServer::set_bitrate(tod_video::VideoConfig &config, std::shared_ptr<RtspStream> stream2reconfigure) {
+    if (!stream2reconfigure->videocrop || !stream2reconfigure->scalingFilter) {
+        ROS_WARN("%s: not cropping/scaling as no videocrop/videoscale for %s initialized",
+                 _nodeName.c_str(), stream2reconfigure->name.c_str());
+        return;
+    }
     g_object_set(G_OBJECT(stream2reconfigure->encoder), "bitrate", config.bitrate, NULL);
     ROS_INFO("%s: set bitrate = %i for %s", _nodeName.c_str(),
              config.bitrate, stream2reconfigure->name.c_str());
@@ -277,6 +271,11 @@ void RtspServer::set_bitrate(tod_video::VideoConfig &config, std::shared_ptr<Rts
 
 void RtspServer::set_cropping_and_scaling(tod_video::VideoConfig &new_config,
                                           std::shared_ptr<RtspStream> stream2reconfigure) {
+    if (!stream2reconfigure->encoder) {
+        ROS_WARN("%s: not setting bitrate as no encoder for %s initialized",
+                 _nodeName.c_str(), stream2reconfigure->name.c_str());
+        return;
+    }
     const int fullWidth = stream2reconfigure->rawWidth;
     const int fullHeight = stream2reconfigure->rawHeight;
 

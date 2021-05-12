@@ -3,9 +3,9 @@
 #include <dynamic_reconfigure/server.h>
 #include <memory>
 #include "tod_video/VideoConfig.h"
-#include "tod_network/tod_network.h"
-#include "tod_msgs/StatusMsg.h"
-#include "tod_msgs/connectionStatus.h"
+#include "tod_network/mqtt_client.h"
+#include "tod_network/connection_configs.h"
+#include "tod_msgs/Status.h"
 
 static std::unique_ptr<tod_network::MqttClient> _mqttClient{nullptr};
 static bool _receivedActualConfigFromVehicle{false};
@@ -13,7 +13,7 @@ static tod_video::VideoConfig _repliedConfig;
 static std::string _nodeName{""};
 static bool _connected{false};
 
-void callback_status_msg(const tod_msgs::StatusMsg &msg);
+void callback_status_msg(const tod_msgs::Status &msg);
 void callback_video_reconfigure_request(tod_video::VideoConfig &config, uint32_t level);
 void send_desired_config_to_vehicle(const tod_video::VideoConfig &config);
 void wait_for_actual_config_from_vehicle();
@@ -40,8 +40,8 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void callback_status_msg(const tod_msgs::StatusMsg &msg) {
-    bool connected = (msg.tod_status != ConnectionStatus::IDLE);
+void callback_status_msg(const tod_msgs::Status &msg) {
+    bool connected = (msg.tod_status != tod_msgs::Status::TOD_STATUS_IDLE);
     if (connected && !_connected) {
         // connected to vehicle
         _mqttClient = std::make_unique<tod_network::MqttClient>(

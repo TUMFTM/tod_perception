@@ -14,10 +14,10 @@ SceneManager::SceneManager(ros::NodeHandle &nodeHandle, QApplication &app, QWidg
 
     if (_adaptVideoParamsEnabled) {
         _subGps = _nodeHandle.subscribe<sensor_msgs::NavSatFix>(
-            "/Operator/VehicleConnection/gps/fix", 5, [&](const auto &msg) {
+            "/Operator/VehicleBridge/gps/fix", 5, [&](const auto &msg) {
                 _gpsMsg = msg;
             });
-        _pubBrPred = _nodeHandle.advertise<geometry_msgs::PointStamped>("bitrateDesOnGps", 5);
+        _pubBrPred = _nodeHandle.advertise<geometry_msgs::PointStamped>("bitrate_desired_on_gps", 5);
     }
 
     // get cameras to stream from ros parameter server
@@ -98,8 +98,8 @@ void SceneManager::run() {
         while (ros::ok()) {
             ros::spinOnce();
             if (_adaptVideoParamsEnabled) {
-                if ( _gpsMsg && (_vidRateControlMode == VideoRateControlMode::COLLECTIVE
-                                || _vidRateControlMode == VideoRateControlMode::SINGLE)
+                if ( _gpsMsg && (_vidRateControlMode == tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_COLLECTIVE
+                                || _vidRateControlMode == tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE)
                     && _connected) {
                     // publish current desired total bitrate on gps in video rate control modes single and collective
                     geometry_msgs::PointStamped predMsg;
@@ -119,19 +119,19 @@ void SceneManager::run() {
     rosThread.join();
 }
 
-void SceneManager::callback_status_msg(const tod_msgs::StatusMsg &msg) {
+void SceneManager::callback_status_msg(const tod_msgs::Status &msg) {
     bool prevConnected = _connected;
-    VideoRateControlMode prevVidRateControlMode = _vidRateControlMode;
-    _connected = (msg.tod_status != (int) ConnectionStatus::IDLE);
-    _vidRateControlMode = (VideoRateControlMode) msg.operator_video_rate_mode;
+    uint8_t prevVidRateControlMode = _vidRateControlMode;
+    _connected = (msg.tod_status != tod_msgs::Status::TOD_STATUS_IDLE);
+    _vidRateControlMode = msg.operator_video_rate_mode;
     if (_connected && !prevConnected) {
         // on connect
         ros::Duration(2.0).sleep();
         get_config_of_all_streams();
         _ui->infoLineEdit->setText("Connected to vehicle.");
     }
-    if ((prevVidRateControlMode != VideoRateControlMode::SINGLE)
-        && (_vidRateControlMode == VideoRateControlMode::SINGLE)) {
+    if ((prevVidRateControlMode != tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE)
+        && (_vidRateControlMode == tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE)) {
         // on entering mode Single
         get_config_of_all_streams();
         _ui->infoLineEdit->setText("Entered single manual mode.");
@@ -140,8 +140,8 @@ void SceneManager::callback_status_msg(const tod_msgs::StatusMsg &msg) {
             _selectedStreamable.reset();
         }
     }
-    if ((prevVidRateControlMode != VideoRateControlMode::AUTOMATIC)
-        && (_vidRateControlMode == VideoRateControlMode::AUTOMATIC)) {
+    if ((prevVidRateControlMode != tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_AUTOMATIC)
+        && (_vidRateControlMode == tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_AUTOMATIC)) {
         // on entering mode Automatic
         _bitrateSum = 0;
         _ui->bitrateSumLineEdit->setText(std::to_string(_bitrateSum).c_str());
@@ -166,8 +166,8 @@ void SceneManager::callback_status_msg(const tod_msgs::StatusMsg &msg) {
         _ui->bitrateSumLineEdit->setText("0");
         _ui->infoLineEdit->setText("Disconnected from vehicle.");
     }
-    if ((prevVidRateControlMode != VideoRateControlMode::COLLECTIVE)
-        && (_vidRateControlMode == VideoRateControlMode::COLLECTIVE)) {
+    if ((prevVidRateControlMode != tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_COLLECTIVE)
+        && (_vidRateControlMode == tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_COLLECTIVE)) {
         // on entering mode Collective
         get_config_of_all_streams();
         reset_reconfigure_fields();
@@ -186,7 +186,7 @@ void SceneManager::slot_toggle_checkbox_clicked(std::shared_ptr<Streamable> stre
         streamable->checkBox->setCheckState(Qt::CheckState::Unchecked);
         return;
     }
-    if (_vidRateControlMode != VideoRateControlMode::SINGLE) {
+    if (_vidRateControlMode != tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE) {
         _ui->infoLineEdit->setText("Cannot turn stream on or off when not in single manual control mode");
         if (streamable->config.paused) streamable->checkBox->setCheckState(Qt::CheckState::Unchecked);
         else streamable->checkBox->setCheckState(Qt::CheckState::Checked);
@@ -238,7 +238,7 @@ void SceneManager::slot_select_button_clicked(std::shared_ptr<Streamable> stream
         _ui->infoLineEdit->setText("Cannot select stream if it is paused");
         return;
     }
-    if (_vidRateControlMode != VideoRateControlMode::SINGLE) {
+    if (_vidRateControlMode != tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE) {
         _ui->infoLineEdit->setText("Cannot select stream when not in single manual control mode");
         return;
     }
@@ -306,7 +306,7 @@ void SceneManager::slot_bitrate_sum_changed() {
         _ui->bitrateSumLineEdit->setText(std::to_string(_bitrateSum).c_str());
         return;
     }
-    if (_vidRateControlMode != VideoRateControlMode::COLLECTIVE) {
+    if (_vidRateControlMode != tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_COLLECTIVE) {
         _ui->infoLineEdit->setText("Cannot set bitrate sum, when not in collective manual mode");
         _ui->bitrateSumLineEdit->setText(std::to_string(_bitrateSum).c_str());
         return;

@@ -12,6 +12,7 @@ The package consists of the following nodes.
 - [OperatorBitrateConfigSend](#operatorbitrateconfigsend)
 - [OperatorBitrateIntegrator](#operatorbitrateintegrator)
 
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
 
 # VehicleRtspServer
@@ -26,13 +27,12 @@ Videos are compressed using the H.264 codec. Videos stream settings can be recon
 **Subscribed Topics:**
 - `/Vehicle/Video/*/image_raw` ([sensor_msgs/Image](http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/Image.html))
   Raw images of each camera '*'. Image topic pattern (/Vehicle/Video) and name (image_raw) can be set to something different in sensors-camera.yaml file.
-- `/Vehicle/Manager/status_msg` ([tod_msgs/StatusMsg](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/StatusMsg.msg))
+- `/Vehicle/Manager/status_msg` ([tod_msgs/Status](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/Status.msg))
   Connection status to operator.
 
 
 # VehicleBandwidthManager
-Performs bitrate allocation and scaling selection for all video streams in video rate control modes 'Automatic' and 'Collective'. Parameters based
-  on rate-quality-curves, loaded for each vehicle from the yaml directory of the `tod_video` package.
+Performs bitrate allocation and scaling selection for all video streams in video rate control modes 'Automatic' and 'Collective'. Parameters are selected based on rate-quality-curves, as specified in vehicle's `sensors-camera.yaml` file in the vehicle config. 
   Reconfigure requests ([tod_video/VideoConfig](https://github.com/TUMFTM/tod_perception/blob/master/tod_video/cfg/Video.cfg))
   are sent to VehicleRtspServer.
 
@@ -42,26 +42,25 @@ Performs bitrate allocation and scaling selection for all video streams in video
   Dynamic reconfigure of target bitrate sum for all videos.
 
 **Subscribed Topics:**
-- `/Vehicle/Manager/status_msg` ([tod_msgs/StatusMsg](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/StatusMsg.msg))
+- `/Vehicle/Manager/status_msg` ([tod_msgs/Status](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/Status.msg))
   Connection status to operator and current video rate control mode.
 
 
 # VehiclePredQoSClient
 Gets predictions of available bitrate at current gps position of vehicle from bandwidth map, loaded
-  from the `bandwith_map.yaml` in the yaml directory of the `tod_video` package, 
-  and implemented as [KDTree](https://github.com/crvs/KDTree) and [std::map](https://en.cppreference.com/w/cpp/container/map).
+  from the `bandwith_map.yaml` in the yaml directory of the `tod_video` package. Look-up is implemented using a [KDTree](https://github.com/crvs/KDTree) and [std::map](https://en.cppreference.com/w/cpp/container/map).
   On change in bitrate prediction and when in video rate control mode 'Automatic', sends reconfigure
   requests ([tod_video/BitrateConfig](https://github.com/TUMFTM/tod_perception/blob/master/tod_video/cfg/Bitrate.cfg))
   to VehicleBandwidthManager.
 
 **Subscribed Topics:**
-- `/Vehicle/VehicleConnection/gps/fix` ([sensor_msgs/NavSatFix](http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/NavSatFix.html))
+- `/Vehicle/VehicleBridge/gps/fix` ([sensor_msgs/NavSatFix](http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/NavSatFix.html))
   Current gps position of vehicle.
-- `/Vehicle/Manager/status_msg` ([tod_msgs/StatusMsg](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/StatusMsg.msg))
+- `/Vehicle/Manager/status_msg` ([tod_msgs/Status](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/Status.msg))
   Connection status to operator and current video rate control mode.
 
 **Advertised Topics:**
-- `/Vehicle/Video/bitratePredOnGps` ([geometry_msgs::PointStamped](http://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/PointStamped.html))
+- `/Vehicle/Video/bitrate_prediction_on_gps` ([geometry_msgs::PointStamped](http://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/PointStamped.html))
   Current bitrate prediction, stored in z, at current gps position, stored in x and y. Published in video rate control mode 'Automatic'.
 
 
@@ -75,7 +74,7 @@ Receives reconfigure requests from operator via [MQTT](https://mqtt.org/).
     to VehicleBandwidthManager.
 
 **Subscribed Topics:**
-- `/Vehicle/Manager/status_msg` ([tod_msgs/StatusMsg](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/StatusMsg.msg))
+- `/Vehicle/Manager/status_msg` ([tod_msgs/Status](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/Status.msg))
   Connection status to operator and current video rate control mode.
 
 
@@ -97,7 +96,7 @@ connecting to rtsp server hosted by VehicleRtspServer. Videos can be paused and 
   Pause and resume video streams.
 
 **Subscribed Topics:**
-- `/Operator/Manager/status_msg` ([tod_msgs/StatusMsg](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/StatusMsg.msg))
+- `/Operator/Manager/status_msg` ([tod_msgs/Status](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/Status.msg))
 Connection status to vehicle.
 
 
@@ -113,14 +112,14 @@ GUI for operator to reconfigure video scene. Options depend on current video rat
 
 
 **Advertised Topics:**
-- `/Operator/Video/bitrateDesOnGps` ([geometry_msgs::PointStamped](http://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/PointStamped.html))
+- `/Operator/Video/bitrate_desired_on_gps` ([geometry_msgs::PointStamped](http://docs.ros.org/en/melodic/api/geometry_msgs/html/msg/PointStamped.html))
   Current total bitrate desired by operator, stored in z, at current gps position, stored in x and y.
   Published in video rate control mode 'Single' and 'Collective'.
 
 **Subscribed Topics:**
-- `/Operator/VehicleConnection/gps/fix` ([sensor_msgs/NavSatFix](http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/NavSatFix.html))
+- `/Operator/VehicleBridge/gps/fix` ([sensor_msgs/NavSatFix](http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/NavSatFix.html))
   Current gps position of vehicle.
-- `/Operator/Manager/status_msg` ([tod_msgs/StatusMsg](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/StatusMsg.msg))
+- `/Operator/Manager/status_msg` ([tod_msgs/Status](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/Status.msg))
   Connection status to vehicle and current video rate control mode.
 
 
@@ -133,7 +132,7 @@ Forwards video reconfigure requests from operator to vehicle via [MQTT](https://
   Dynamic reconfigure of video streams: bitrate, scaling, cropping. Transmitted to vehicle in video rate control mode 'Single'.
 
 **Subscribed Topics:**
-- `/Operator/Manager/status_msg` ([tod_msgs/StatusMsg](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/StatusMsg.msg))
+- `/Operator/Manager/status_msg` ([tod_msgs/Status](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/Status.msg))
   Connection status to operator and current video rate control mode.
 
 
@@ -146,7 +145,7 @@ Forwards bitrate reconfigure requests from operator to vehicle via [MQTT](https:
   Dynamic reconfigure of total target bitrate of video streams. Transmitted to vehicle in video rate control mode 'Collective'.
 
 **Subscribed Topics:**
-- `/Operator/Manager/status_msg` ([tod_msgs/StatusMsg](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/StatusMsg.msg))
+- `/Operator/Manager/status_msg` ([tod_msgs/Status](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/Status.msg))
   Connection status to operator and current video rate control mode.
 
 
@@ -158,7 +157,7 @@ Sums current bitrate over all videos.
   Current bitrate summed over all videos, stored in z, at current gps position, stored in x and y.
 
 **Subscribed Topics:**
-- `/Operator/VehicleConnection/gps/fix` ([sensor_msgs/NavSatFix](http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/NavSatFix.html))
+- `/Operator/VehicleBridge/gps/fix` ([sensor_msgs/NavSatFix](http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/NavSatFix.html))
   Current gps position of vehicle.
 - `/Operator/Video/*/video_info` ([tod_msgs/VideoInfo](https://github.com/TUMFTM/tod_common/blob/master/tod_msgs/msg/VideoInfo.msg))
   Info for each video '*' (current framerate, image width/height, bitrate).

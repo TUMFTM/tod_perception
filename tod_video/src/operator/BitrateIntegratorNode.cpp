@@ -28,19 +28,18 @@ int main(int argc, char *argv[]) {
 
     sensor_msgs::NavSatFix gpsMsg;
     ros::Subscriber subGps = nodeHandle.subscribe<sensor_msgs::NavSatFix>(
-        "/Operator/VehicleConnection/gps/fix", 10, boost::bind(callback_gps, _1, std::ref(gpsMsg)));
+        "/Operator/VehicleBridge/gps/fix", 10, boost::bind(callback_gps, _1, std::ref(gpsMsg)));
     ros::Publisher pubSum = nodeHandle.advertise<geometry_msgs::PointStamped>("totalBitrateOnGps", 10);
-    ros::Publisher pubAvg = nodeHandle.advertise<geometry_msgs::PointStamped>("averageFramerateOnGps", 10);
 
     // initialize streams to integrate from list of cameras on parameter server
     std::vector<std::shared_ptr<Stream2Integrate>> streams;
     for (int i=0; i <= 10; ++i) {
         std::string name{""};
         if (nodeHandle.getParam(std::string(nodeName + "/camera" + std::to_string(i) + "/name"), name)) {
-            streams.emplace_back(std::make_shared<Stream2Integrate>());
-            streams.back()->subscriber = nodeHandle.subscribe<tod_msgs::VideoInfo>
-                                         ("/Operator/Video/" + name + "/video_info", 1,
-                                          boost::bind(&callback_video_kpi, _1, streams.back()));
+            auto stream = streams.emplace_back(std::make_shared<Stream2Integrate>());
+            stream->subscriber = nodeHandle.subscribe<tod_msgs::VideoInfo>
+                                 ("/Operator/Video" + name + "/video_info", 1,
+                                  boost::bind(&callback_video_kpi, _1, streams.back()));
         }
     }
 

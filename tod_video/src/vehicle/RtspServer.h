@@ -8,10 +8,9 @@
 #include <sensor_msgs/image_encodings.h>
 #include <thread>
 #include <mutex>
-#include <tod_network/tod_network.h>
 #include <tod_video/VideoConfig.h>
-#include <tod_msgs/StatusMsg.h>
-#include <tod_msgs/connectionStatus.h>
+#include <tod_msgs/Status.h>
+#include <tod_network/connection_configs.h>
 #include <dynamic_reconfigure/server.h>
 #include <string>
 #include <algorithm>
@@ -31,7 +30,7 @@ private:
     dynamic_reconfigure::Server<tod_video::VideoConfig> _reconfigServer;
     struct RtspStream;
     std::vector<std::shared_ptr<RtspStream>> _streams;
-    bool _connected{false};
+    bool _operatorConnected{false};
     int _defaultBitrate{1000};
 
     void factory_gst_video_pipeline(std::shared_ptr<RtspStream> stream,
@@ -48,7 +47,6 @@ private:
                                 RtspStream *stream);
 
     struct RtspStream {
-        bool clientConnected{false};
         bool newDataAvailable{false};
         bool needData{false};
         ros::Time lastNeedDataStamp{ros::Time::now()};
@@ -79,11 +77,6 @@ private:
             currentConfig.scaling = tod_video::Video_1p000;
             needData = false;
             newDataAvailable = false;
-            clientConnected = false;
-            encoder = nullptr;
-            videocrop = nullptr;
-            scalingFilter = nullptr;
-            appsrc = nullptr;
         }
     };
 };

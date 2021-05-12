@@ -15,27 +15,28 @@ RtspClients::RtspClients(ros::NodeHandle &nodeHandle) : _nodeHandle(nodeHandle),
 
     _reconfigServer.setCallback(boost::bind(&RtspClients::toggle_video_stream, this, _1, _2));
     _subsStatus = _nodeHandle.subscribe("/Operator/Manager/status_msg",
-                                       5, &RtspClients::callback_status_msg, this);
+                                        5, &RtspClients::callback_status_msg, this);
 
     // get cameras to stream from ros parameter server
     for (int i=0; i <= 10; ++i) {
         std::string name{""};
         if (_nodeHandle.getParam(std::string(_nodeName + "/camera" + std::to_string(i) + "/name"), name)) {
-            _streams.emplace_back(std::make_shared<RtspStream>());
-            _streams.back()->name = name;
-            _streams.back()->imageOutputFormat = imgOutputFormat;
-            _streams.back()->pubImage = _nodeHandle.advertise<sensor_msgs::Image>(name + "/image_raw", 1);
-            _streams.back()->pubVideoInfo = _nodeHandle.advertise<tod_msgs::VideoInfo>(name + "/video_info", 5);
-            _streams.back()->pubPaketInfo = _nodeHandle.advertise<tod_msgs::PaketInfo>(name + "/paket_info", 100);
+            auto stream = _streams.emplace_back(std::make_shared<RtspStream>());
+            stream->name = name;
+            stream->imageOutputFormat = imgOutputFormat;
+            std::string name4topic(&name.at(1), name.size()-1); // name without '/'
+            stream->pubImage = _nodeHandle.advertise<sensor_msgs::Image>(name4topic + "/image_raw", 1);
+            stream->pubVideoInfo = _nodeHandle.advertise<tod_msgs::VideoInfo>(name4topic + "/video_info", 5);
+            stream->pubPaketInfo = _nodeHandle.advertise<tod_msgs::PaketInfo>(name4topic + "/paket_info", 100);
 
             // support for camera names with (2) dots: ros topic names with 'DOT', uris with '.'
             std::string str2find = "DOT";
-            std::size_t foundDOT1 = _streams.back()->name.find(str2find);
+            std::size_t foundDOT1 = stream->name.find(str2find);
             if (foundDOT1 != std::string::npos)
-                _streams.back()->name.replace(foundDOT1, str2find.length(), ".");
-            std::size_t foundDOT2 = _streams.back()->name.find(str2find);
+                stream->name.replace(foundDOT1, str2find.length(), ".");
+            std::size_t foundDOT2 = stream->name.find(str2find);
             if (foundDOT2 != std::string::npos)
-                _streams.back()->name.replace(foundDOT2, str2find.length(), ".");
+                stream->name.replace(foundDOT2, str2find.length(), ".");
         }
     }
 }
@@ -75,8 +76,8 @@ void RtspClients::run() {
     g_main_loop_unref(gstLoop);
 }
 
-void RtspClients::callback_status_msg(const tod_msgs::StatusMsg &msg) {
-    bool connected = (msg.tod_status != ConnectionStatus::IDLE);
+void RtspClients::callback_status_msg(const tod_msgs::Status &msg) {
+    bool connected = (msg.tod_status != tod_msgs::Status::TOD_STATUS_IDLE);
     if (connected && !_connected) {
         // on connect
         for (auto stream : _streams) {
@@ -111,8 +112,8 @@ void RtspClients::connect_video_client(std::shared_ptr<RtspStream> stream, const
     else ROS_WARN("%s: unknown image format %s - setting output format to %s",
                  _nodeName.c_str(), stream->imageOutputFormat.c_str(), gstImageFormat.c_str());
 
-    std::string uri = "rtsp://" + vehicleIp + ":" + std::to_string(tod_network::VehiclePorts::RX_VIDEO_RTSP) +
-                      "/" + stream->name;
+    std::string uri = "rtsp://" + vehicleIp + ":" + std::to_string(tod_network::VehiclePorts::RX_VIDEO_RTSP)
+                      + stream->name;
     gchar *pipe_desc = g_strdup_printf("rtspsrc location=%s latency=%d drop-on-latency=true !"
                                        " identity name=myIdentity signal-handoffs=true !"
                                        " rtph264depay !"

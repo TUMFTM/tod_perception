@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<launch>
+
+<arg name="vehicleID" default="tum-q7"/>
+
+<arg name="do_project_vehicle_lane" default="true"/>
+<arg name="do_project_laser_scans" default="true"/>
+
+<group ns="Operator/Projection">
+<node name="VideoProjection" pkg="tod_projection" type="OperatorVideoProjection" output="screen">
+    <param name="debug" value="false"/>
+    <param name="vehicleID" value="$(arg vehicleID)"/>
+    <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml"/>
+    <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-camera.yaml"/>
+    <param name="do_project_vehicle_lane" value="$(arg do_project_vehicle_lane)"/>
+    <param name="do_project_laser_scans" value="$(arg do_project_laser_scans)"/>
+</node>
+
+<node name="LaneProjection" pkg="tod_projection" type="OperatorLaneProjection" output="screen">
+    <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/vehicle-params.yaml" />
+</node>
+
+</group>
+
+</launch>

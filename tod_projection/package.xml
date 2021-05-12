@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="2">
+    <name>tod_projection</name>
+    <version>1.0.0</version>
+    <description>The tod_projection package</description>
+    <maintainer email="andreas.schimpe@tum.de">Andreas Schimpe</maintainer>
+
+    <license>LGPLv3</license>
+
+    <buildtool_depend>catkin</buildtool_depend>
+
+    <build_depend>roscpp</build_depend>
+    <build_depend>sensor_msgs</build_depend>
+    <build_depend>nav_msgs</build_depend>
+    <build_depend>tf2_ros</build_depend>
+    <build_depend>tod_msgs</build_depend>
+    <build_depend>tod_helper_functions</build_depend>
+    <build_depend>tod_projection_helper</build_depend>
+
+    <build_export_depend>roscpp</build_export_depend>
+    <build_export_depend>sensor_msgs</build_export_depend>
+    <build_export_depend>nav_msgs</build_export_depend>
+    <build_export_depend>tf2_ros</build_export_depend>
+    <build_export_depend>tod_msgs</build_export_depend>
+    <build_export_depend>tod_helper_functions</build_export_depend>
+    <build_export_depend>tod_projection_helper</build_export_depend>
+
+    <exec_depend>roscpp</exec_depend>
+    <exec_depend>tod_vehicle_config</exec_depend>
+</package>

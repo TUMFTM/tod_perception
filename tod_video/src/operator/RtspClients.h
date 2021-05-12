@@ -5,18 +5,18 @@
 #include <thread>
 #include <memory>
 #include <vector>
+#include <mutex>
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
 #include <gst/rtp/gstrtpbuffer.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 #include <dynamic_reconfigure/server.h>
-#include "tod_msgs/StatusMsg.h"
-#include "tod_network/tod_network.h"
-#include "tod_msgs/connectionStatus.h"
+#include "tod_msgs/Status.h"
 #include "tod_video/ClientConfig.h"
 #include "tod_msgs/PaketInfo.h"
 #include "tod_msgs/VideoInfo.h"
+#include "tod_network/connection_configs.h"
 
 class RtspClients {
 public:
@@ -34,7 +34,7 @@ private:
     int _latency;
     bool _connected{false};
 
-    void callback_status_msg(const tod_msgs::StatusMsg &msg);
+    void callback_status_msg(const tod_msgs::Status &msg);
     void connect_video_client(std::shared_ptr<RtspStream> stream, const std::string &vehicleIp);
     void disconnect_video_client(std::shared_ptr<RtspStream> stream);
     void toggle_video_stream(tod_video::ClientConfig &config, uint32_t level);

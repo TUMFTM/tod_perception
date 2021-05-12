@@ -4,9 +4,7 @@
 #include <sensor_msgs/NavSatFix.h>
 
 #include <tod_video/BitrateConfig.h>
-#include "tod_msgs/StatusMsg.h"
-#include "tod_msgs/connectionStatus.h"
-#include "tod_msgs/controlMode.h"
+#include "tod_msgs/Status.h"
 #include "KDTree/KDTree.hpp"
 #include <map>
 #include <dynamic_reconfigure/server.h>
@@ -45,17 +43,16 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    ros::Subscriber subStatusMsg = n.subscribe<tod_msgs::StatusMsg>(
+    ros::Subscriber subStatusMsg = n.subscribe<tod_msgs::Status>(
         "/Vehicle/Manager/status_msg", 5, [&](const auto &msg) {
-            _connectedToOperator = (ConnectionStatus(msg->tod_status) != ConnectionStatus::IDLE);
-            _inAutomaticMode = (VideoRateControlMode(msg->operator_video_rate_mode)
-                                      == VideoRateControlMode::AUTOMATIC);
+            _connectedToOperator = (msg->tod_status != tod_msgs::Status::TOD_STATUS_IDLE);
+            _inAutomaticMode = (msg->operator_video_rate_mode == tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_AUTOMATIC);
         });
     ros::Subscriber subGps = n.subscribe<sensor_msgs::NavSatFix>(
-        "/Vehicle/VehicleConnection/gps/fix", 5, [&](const auto &msg) {
+        "/Vehicle/VehicleBridge/gps/fix", 5, [&](const auto &msg) {
             _gpsMsg = msg;
         });
-    ros::Publisher pubBrPred = n.advertise<geometry_msgs::PointStamped>("bitratePredOnGps", 5);
+    ros::Publisher pubBrPred = n.advertise<geometry_msgs::PointStamped>("bitrate_prediction_on_gps", 5);
 
     // check periodically for change in bandwidth prediction
     ros::Rate r(20);

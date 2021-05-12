@@ -32,7 +32,7 @@
     <param name="debug" value="false"/>
 </node>
 
-<node name="BitratePredictionReceiver" type="BitratePredictionReceiver" pkg="tod_network" output="screen"
+<node name="BitratePredictionReceiver" type="OperatorBitratePredictionReceiver" pkg="tod_video" output="screen"
     if="$(eval adaptVideoParamsEnabled)"/>
 
 </group> <!--group: /Operator/Video-->
