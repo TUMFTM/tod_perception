@@ -5,17 +5,14 @@
     <group ns="Operator/Lidar">
         <node name="OperatorLaserScansReceiver" pkg="tod_lidar" type="OperatorLaserScansReceiver" output="screen">
             <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-            <param name="debug" value="false"/>
         </node>
 
         <node name="OperatorObjectListsReceiver" pkg="tod_lidar" type="OperatorObjectListsReceiver" output="screen">
             <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-            <param name="debug" value="false"/>
         </node>
 
         <node name="OperatorObjectMarkersReceiver" pkg="tod_lidar" type="OperatorObjectMarkersReceiver" output="screen">
             <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-            <param name="debug" value="false"/>
         </node>
     </group>
 </launch>

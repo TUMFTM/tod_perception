@@ -19,10 +19,9 @@ target_include_directories(VehicleObjectMarkersSender PRIVATE ${catkin_INCLUDE_D
 set_property(TARGET VehicleObjectMarkersSender PROPERTY CXX_STANDARD 17)
 
 set(TARGETS ${TARGETS} LaserScansDetector)
-add_executable(LaserScansDetector LaserScansDetector.cpp LaserScansDetectorNode.cpp
-		../../include/tod_lidar/ObjectListHelper.h)
+add_executable(LaserScansDetector LaserScansDetector.cpp LaserScansDetectorNode.cpp)
 target_link_libraries(LaserScansDetector ${catkin_LIBRARIES})
-target_include_directories(LaserScansDetector PUBLIC ${catkin_INCLUDE_DIRS} ../../include/)
+target_include_directories(LaserScansDetector PUBLIC ${catkin_INCLUDE_DIRS})
 set_property(TARGET LaserScansDetector PROPERTY CXX_STANDARD 17)
 
 set(TARGETS ${TARGETS} GridMapCreator)
@@ -33,10 +32,9 @@ set_property(TARGET GridMapCreator PROPERTY CXX_STANDARD 17)
 
 set(TARGETS ${TARGETS} GridMapDetector)
 add_executable(GridMapDetector GridMapDetector.cpp GridMapDetectorNode.cpp
-		../../include/tod_lidar/ObjectListHelper.h
                 ../../external/SimpleDBSCAN/kdtree.cpp)
 target_link_libraries(GridMapDetector ${catkin_LIBRARIES})
-target_include_directories(GridMapDetector PUBLIC ${catkin_INCLUDE_DIRS} ../../include ../../external)
+target_include_directories(GridMapDetector PUBLIC ${catkin_INCLUDE_DIRS} ../../external)
 set_property(TARGET GridMapDetector PROPERTY CXX_STANDARD 17)
 
 install(TARGETS ${TARGETS}

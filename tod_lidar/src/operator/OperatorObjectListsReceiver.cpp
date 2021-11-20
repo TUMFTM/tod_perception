@@ -24,6 +24,8 @@ int main(int argc, char **argv) {
             ++lidarCount;
         }
     }
+
     receiver.run();
+
     return 0;
 }

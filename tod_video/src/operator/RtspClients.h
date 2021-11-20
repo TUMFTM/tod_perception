@@ -51,5 +51,6 @@ private:
         int bitrate_kbit{0}, framerate{0}, imgHeight_px{0}, imgWidth_px{0};
         ros::Time lastVideoInfoCalc;
         std::string imageOutputFormat;
+        bool isJpeg{false};
     };
 };

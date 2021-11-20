@@ -33,41 +33,37 @@ struct PolarPoint {
 
 class GridMapCreator {
 public:
-    explicit GridMapCreator(ros::NodeHandle &nodeHandle);
-
-    void addData();
+    explicit GridMapCreator(ros::NodeHandle &nh);
 
 private:
-    ros::NodeHandle nodeHandle;
-    std::string _nodeName{""};
-    ros::Publisher gridMapPublisher;
-    ros::Publisher gridMapVisualPublisher;
-    ros::Subscriber lidarScanSubscriber;
-    ros::Subscriber odomFrameSubscriber;
-    grid_map::GridMap lidarGridMap;
-    std::string itsOccupancyLayer;
-    grid_map_msgs::GridMap lidarGridMapRos;
-    grid_map::Position currentVehiclePosition;
-    sensor_msgs::PointCloud2 pointCloudGlobalCoord;
-    std::vector<geometry_msgs::PoseStamped> itsStampedPoses;
-    tf2_ros::Buffer itsTf2Buffer;
-    tf2_ros::TransformListener itsTf2Listener;
-    std::vector<geometry_msgs::Point> vehicleFixedLaserScanPoints;
-    std::vector<geometry_msgs::Point> globalLaserScanPoints;
-    std::vector<geometry_msgs::Point32> globalLaserScanPoints32;
-    sensor_msgs::PointCloud globalLaserScanPointCloud;
-    ros::Publisher lidarPointCloudPublisher;
-    std::string lidarFrameId{"none"};
-    std::string gridMapFrameId;
+    ros::NodeHandle _nh;
+    std::string _nn;
+    ros::Publisher _gridMapPublisher, _gridMapVisualPublisher, _lidarPointCloudPublisher;
+    ros::Subscriber _laserScanSubscriber, _odomSubscriber;
+    tf2_ros::Buffer _tfBuffer;
+    tf2_ros::TransformListener _tfListener;
 
-    bool gridConstructed{false};
-    double gridMapWidthInM;
-    double gridMapHeightInM;
-    double gridMapCellSizeInM;
-    double mapBehindVehicleInM;
-    double lidarHeight;
-    double occupied;
-    double free;
+    std::string _lidarFrameId{"none"};
+    std::string _gridMapFrameId;
+    grid_map::GridMap _lidarGridMap;
+    std::string _occupancyLayer;
+    grid_map_msgs::GridMap _gridMapRos;
+    grid_map::Position _currentVehiclePosition;
+    sensor_msgs::PointCloud2 _pointCloudGlobalCoord;
+    std::vector<geometry_msgs::PoseStamped> _stampedPoses;
+    std::vector<geometry_msgs::Point> _vehicleFixedLaserScanPoints;
+    std::vector<geometry_msgs::Point> _globalLaserScanPoints;
+    std::vector<geometry_msgs::Point32> _globalLaserScanPoints32;
+    sensor_msgs::PointCloud _globalLaserScanPointCloud;
+
+    bool _gridConstructed{false};
+    double _gridMapWidthInM;
+    double _gridMapHeightInM;
+    double _gridMapCellSizeInM;
+    double _mapBehindVehicleInM;
+    double _lidarHeight;
+    double _occupied;
+    double _free;
 
     void processArrivedLidarScan(const sensor_msgs::LaserScan& msg);
     void initGridMap();
@@ -85,7 +81,6 @@ private:
     void publishGridMap();
     grid_map::Position convertPoint32ToPosition(const geometry_msgs::Point32& point);
     bool isTransformMissing();
-    void writeGridMapIntoMeshMsgAndPublishIt();
     void loadParamsFromParamServer();
     void printStandardRosWarn(const std::string& paramName);
 };

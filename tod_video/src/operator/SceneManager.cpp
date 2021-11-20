@@ -21,19 +21,22 @@ SceneManager::SceneManager(ros::NodeHandle &nodeHandle, QApplication &app, QWidg
     }
 
     // get cameras to stream from ros parameter server
-    std::vector<std::string> camNames;
+    struct NameAndStreamOnConnect { std::string name; bool streamOnConnect{true}; };
+    std::vector<NameAndStreamOnConnect> cams;
     for (int i=0; i <= 10; ++i) {
         std::string camName{""};
         if (_nodeHandle.getParam(_nodeName + "/camera" + std::to_string(i) + "/name", camName)) {
-            // support for camera names with (2) dots
             std::string str2find = "DOT";
-            std::size_t foundDOT1 = camName.find(str2find);
-            if (foundDOT1 != std::string::npos)
-                camName.replace(foundDOT1, str2find.length(), ".");
-            std::size_t foundDOT2 = camName.find(str2find);
-            if (foundDOT2 != std::string::npos)
-                camName.replace(foundDOT2, str2find.length(), ".");
-            camNames.push_back(camName);
+            std::size_t found;
+            // support for camera names with dots: name with DOT, uri with .
+            while ((found = camName.find(str2find)) != std::string::npos) {
+                camName.replace(found, str2find.length(), ".");
+            }
+            // element to create streamable from later
+            auto& cam = cams.emplace_back();
+            cam.name = camName;
+            _nodeHandle.getParam(std::string(_nodeName + "/camera" + std::to_string(i) + "/stream_on_connect"),
+                                 cam.streamOnConnect);
         }
     }
 
@@ -42,14 +45,14 @@ SceneManager::SceneManager(ros::NodeHandle &nodeHandle, QApplication &app, QWidg
     _ui->setupUi(this);
     // create checkbox and push button for every camera to stream
     const int horOffs(40), verOffs(100), verStep(40), buttonHeight(30);
-    for (int i=0; i < camNames.size(); ++i) {
-        std::string name = camNames.at(i);
+    for (int i=0; i < cams.size(); ++i) {
+        const NameAndStreamOnConnect& cam = cams.at(i);
         _streamables.emplace_back(std::make_shared<Streamable>(
-            name, new QPushButton(name.c_str(), this),
-            new QCheckBox(name.c_str(), this)));
+            cam.name, cam.streamOnConnect, new QPushButton(cam.name.c_str(), this),
+            new QCheckBox(cam.name.c_str(), this)));
         // push button
         _streamables.at(i)->button->setGeometry(horOffs, verOffs+i*verStep, 200, buttonHeight);
-        _streamables.at(i)->button->setText(name.c_str());
+        _streamables.at(i)->button->setText(cam.name.c_str());
         _streamables.at(i)->button->setToolTip("Select camera to reconfigure");
         _streamables.at(i)->button->setFont(QFont("Ubuntu", 12, 60, false));
         _streamables.at(i)->button->setPalette(QPalette(QColor(Qt::lightGray)));
@@ -129,6 +132,16 @@ void SceneManager::callback_status_msg(const tod_msgs::Status &msg) {
         ros::Duration(2.0).sleep();
         get_config_of_all_streams();
         _ui->infoLineEdit->setText("Connected to vehicle.");
+        for (auto& streamable : _streamables) {
+            if (!streamable->streamOnConnect) {
+                // pause
+                tod_video::ClientConfig cfg;
+                cfg.camera_name = streamable->name;
+                cfg.pause = true;
+                request_clients_reconfigure_and_update_gui(cfg, streamable);
+                streamable->checkBox->setCheckState(Qt::CheckState::Unchecked);
+            }
+        }
     }
     if ((prevVidRateControlMode != tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE)
         && (_vidRateControlMode == tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE)) {
@@ -196,23 +209,7 @@ void SceneManager::slot_toggle_checkbox_clicked(std::shared_ptr<Streamable> stre
     tod_video::ClientConfig config;
     config.camera_name = streamable->name;
     config.pause = !streamable->config.paused;
-    dynamic_reconfigure::ReconfigureRequest req;
-    dynamic_reconfigure::ReconfigureResponse resp;
-    config.__toMessage__(req.config);
-    if (!ros::service::call("/Operator/Video/RtspClients/set_parameters", req, resp))
-        ROS_ERROR("%s: failed to call service", _nodeName.c_str());
-    else
-        streamable->config.paused = config.pause;
-    std::string mode{""};
-    if (streamable->config.paused) {
-        mode = "Stopped";
-        _bitrateSum -= streamable->config.bitrate;
-    } else {
-        mode = "Started";
-        _bitrateSum += streamable->config.bitrate;
-    }
-    _ui->bitrateSumLineEdit->setText(std::to_string(_bitrateSum).c_str());
-    _ui->infoLineEdit->setText(std::string(mode + " streaming " + streamable->name).c_str());
+    request_clients_reconfigure_and_update_gui(config, streamable);
 }
 
 void SceneManager::slot_select_button_clicked(std::shared_ptr<Streamable> streamable) {
@@ -263,7 +260,7 @@ void SceneManager::slot_bitrate_changed() {
     _bitrateSum -= _selectedStreamable->config.bitrate;
     tod_video::VideoConfig desCfg = _selectedStreamable->config;
     desCfg.bitrate = _ui->bitrateLineEdit->text().toInt();
-    _selectedStreamable->config = request_reconfigure(desCfg, "VideoConfigSend");
+    _selectedStreamable->config = request_server_reconfigure(desCfg, "VideoConfigSend");
     set_reconfigure_fields_of_selected_stream();
     _bitrateSum += _selectedStreamable->config.bitrate;
     _ui->bitrateSumLineEdit->setText(std::to_string(_bitrateSum).c_str());
@@ -279,7 +276,7 @@ void SceneManager::slot_scaling_changed() {
     tod_video::VideoConfig desCfg = _selectedStreamable->config;
     desCfg.scaling = std::string(_ui->scalingComboBox->currentText().toUtf8());
     if (desCfg.scaling == _selectedStreamable->config.scaling) return;
-    _selectedStreamable->config = request_reconfigure(desCfg, "VideoConfigSend");
+    _selectedStreamable->config = request_server_reconfigure(desCfg, "VideoConfigSend");
     set_reconfigure_fields_of_selected_stream();
     _ui->infoLineEdit->setText(std::string("Scaled " + _selectedStreamable->name).c_str());
 }
@@ -295,7 +292,7 @@ void SceneManager::slot_cropping_changed() {
     desCfg.height = _ui->heightLineEdit->text().toInt();
     desCfg.offset_width = _ui->widthOffsetLineEdit->text().toInt();
     desCfg.offset_height = _ui->heightOffsetLineEdit->text().toInt();
-    _selectedStreamable->config = request_reconfigure(desCfg, "VideoConfigSend");
+    _selectedStreamable->config = request_server_reconfigure(desCfg, "VideoConfigSend");
     set_reconfigure_fields_of_selected_stream();
     _ui->infoLineEdit->setText(std::string("Cropped " + _selectedStreamable->name).c_str());
 }
@@ -313,7 +310,7 @@ void SceneManager::slot_bitrate_sum_changed() {
     }
     tod_video::BitrateConfig desCfg;
     desCfg.bitrate = _ui->bitrateSumLineEdit->text().toInt();
-    tod_video::BitrateConfig actCfg = request_reconfigure(desCfg, "BitrateConfigSend");
+    tod_video::BitrateConfig actCfg = request_server_reconfigure(desCfg, "BitrateConfigSend");
     _bitrateSum = actCfg.bitrate;
     _ui->bitrateSumLineEdit->setText(std::to_string(_bitrateSum).c_str());
     std::string info{"Set bitrate sum to " + std::to_string(_bitrateSum)};
@@ -354,7 +351,7 @@ void SceneManager::get_config_of_all_streams() {
             tod_video::VideoConfig cfg;
             cfg.camera_name = streamable->name;
             cfg.width = cfg.height = -1; // server replies with current config on this
-            streamable->config = request_reconfigure(cfg, "VideoConfigSend");
+            streamable->config = request_server_reconfigure(cfg, "VideoConfigSend");
             if (streamable->config.paused) {
                 streamable->checkBox->setCheckState(Qt::CheckState::Unchecked);
                 streamable->unavailable = true;
@@ -376,7 +373,7 @@ void SceneManager::get_config_of_all_streams() {
 }
 
 template <typename T>
-T SceneManager::request_reconfigure(const T &desCfg, const std::string &name) {
+T SceneManager::request_server_reconfigure(const T &desCfg, const std::string &name) {
     dynamic_reconfigure::ReconfigureRequest req;
     dynamic_reconfigure::ReconfigureResponse resp;
     desCfg.__toMessage__(req.config);
@@ -385,4 +382,25 @@ T SceneManager::request_reconfigure(const T &desCfg, const std::string &name) {
     T actCfg;
     actCfg.__fromMessage__(resp.config);
     return actCfg;
+}
+
+void SceneManager::request_clients_reconfigure_and_update_gui(
+    const tod_video::ClientConfig &config, std::shared_ptr<Streamable> streamable) {
+    dynamic_reconfigure::ReconfigureRequest req;
+    dynamic_reconfigure::ReconfigureResponse resp;
+    config.__toMessage__(req.config);
+    if (!ros::service::call("/Operator/Video/RtspClients/set_parameters", req, resp))
+        ROS_ERROR("%s: failed to call service", _nodeName.c_str());
+    else
+        streamable->config.paused = config.pause;
+    std::string mode{""};
+    if (streamable->config.paused) {
+        mode = "Stopped";
+        _bitrateSum -= streamable->config.bitrate;
+    } else {
+        mode = "Started";
+        _bitrateSum += streamable->config.bitrate;
+    }
+    _ui->bitrateSumLineEdit->setText(std::to_string(_bitrateSum).c_str());
+    _ui->infoLineEdit->setText(std::string(mode + " streaming " + streamable->name).c_str());
 }

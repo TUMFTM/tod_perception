@@ -6,15 +6,9 @@ This ROS package provides nodes to
 
 
 ### Dependencies
-  * ROS Packages:
-    * roscpp
-    * tf2_ros
-    * sensor_msgs
-    * grid_map_ros
-    * tod_msgs
-    * tod_network
-    * tod_vehicle_config (exec only)
-    * grid_map_visualization (exec only)
+  * C++17
+  * ROS Packages: see `package.xml`
+  * Other Libraries: none
 
 
 ### Documentation

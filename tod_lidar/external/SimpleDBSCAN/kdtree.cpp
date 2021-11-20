@@ -480,7 +480,6 @@ static double hyperrect_dist_sq(struct kdhyperrect *rect, const double *pos)
 }
 
 /* inserts the item. if dist_sq is >= 0, then do an ordered insert */
-/* TODO make the ordering code use heapsort */
 static int rlist_insert(struct res_node *list, struct kdnode *item, double dist_sq)
 {
     struct res_node *rnode;

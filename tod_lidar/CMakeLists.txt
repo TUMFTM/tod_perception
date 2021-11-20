@@ -8,11 +8,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(catkin REQUIRED COMPONENTS
-    roscpp tf2_ros sensor_msgs grid_map_ros tod_msgs tod_network)
+    roscpp tf2_ros tf2_sensor_msgs tf2_geometry_msgs sensor_msgs grid_map_ros tod_msgs tod_network tod_helper)
 
 catkin_package(
-    INCLUDE_DIRS include
-    CATKIN_DEPENDS roscpp tf2_ros sensor_msgs grid_map_ros tod_msgs tod_network
+    # INCLUDE_DIRS include
+    CATKIN_DEPENDS roscpp tf2_ros tf2_sensor_msgs tf2_geometry_msgs sensor_msgs grid_map_ros tod_msgs tod_network tod_helper
 )
 
 option(VEHICLE "Build vehicle targets" ON)
@@ -29,4 +29,13 @@ else()
     message("skipping ${PROJECT_NAME} operator targets")
 endif()
 
-install(DIRECTORY include external launch config DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+install(DIRECTORY
+    launch
+    config
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+    )
+
+install(DIRECTORY
+    external
+    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    )

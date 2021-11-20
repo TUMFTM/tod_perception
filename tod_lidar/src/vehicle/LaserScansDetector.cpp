@@ -142,8 +142,7 @@ void LaserScansDetector::calc_bounding_boxes(
 
 void LaserScansDetector::publish_object_list_marker(
         const tod_msgs::ObjectList &msg, std::shared_ptr<Detector> detector) {
-    std::vector<visualization_msgs::Marker> markers;
-    ObjectListHelper::create_markers_from_objects(msg.objectList, markers);
+    std::vector<visualization_msgs::Marker> markers = tod_helper::ObjectList::to_marker_vector(msg.objectList);
     for (auto& marker : markers) {
         marker.header.frame_id = detector->name;
         detector->pubVizMarker.publish(marker);

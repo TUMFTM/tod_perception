@@ -8,14 +8,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(catkin REQUIRED COMPONENTS
-    roscpp sensor_msgs nav_msgs tf2_ros
-    tod_msgs tod_projection_helper tod_helper_functions
+    roscpp sensor_msgs nav_msgs tf2_ros tod_msgs tod_helper
     )
 
 
 catkin_package(
-    CATKIN_DEPENDS roscpp sensor_msgs nav_msgs tf2_ros
-                   tod_msgs tod_projection_helper tod_helper_functions
+    CATKIN_DEPENDS roscpp sensor_msgs nav_msgs tf2_ros tod_msgs tod_helper
     )
 
 

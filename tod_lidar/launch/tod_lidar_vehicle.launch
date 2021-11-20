@@ -5,32 +5,24 @@
     <group ns="Vehicle/Lidar">
         <node name="LaserScansDetector" pkg="tod_lidar" type="LaserScansDetector" output="screen">
             <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-            <param name="debug" value="false"/>
         </node>
 
         <node name="VehicleLaserScansSender" pkg="tod_lidar" type="VehicleLaserScansSender" output="screen">
             <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-            <param name="debug" value="false"/>
         </node>
 
         <node name="VehicleObjectListsSender" pkg="tod_lidar" type="VehicleObjectListsSender" output="screen">
             <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-            <param name="debug" value="false"/>
         </node>
 
         <node name="VehicleObjectMarkersSender" pkg="tod_lidar" type="VehicleObjectMarkersSender" output="screen">
             <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-            <param name="debug" value="false"/>
         </node>
 
         <group ns="GridMap">
-            <node name="GridMapCreator" pkg="tod_lidar" type="GridMapCreator" output="screen">
+            <node name="Creator" pkg="tod_lidar" type="GridMapCreator" output="screen">
                 <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
                 <rosparam command="load" file="$(find tod_lidar)/config/grid_map.yaml" />
-                <remap from="/status_msg" to="/Vehicle/Manager/status_msg"/>
-                <remap from="/odometry" to="/Vehicle/VehicleBridge/odometry"/>
-                <remap from="/grid_map" to="grid_map"/>
-                <remap from="Creator/laser_scan_pointcloud" to="point_cloud"/>
             </node>
 
             <node name="GridMapDetector" pkg="tod_lidar" type="GridMapDetector" output="screen"/>

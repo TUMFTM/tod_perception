@@ -18,25 +18,24 @@ RtspClients::RtspClients(ros::NodeHandle &nodeHandle) : _nodeHandle(nodeHandle),
                                         5, &RtspClients::callback_status_msg, this);
 
     // get cameras to stream from ros parameter server
-    for (int i=0; i <= 10; ++i) {
+    for (int i=0; i <= 20; ++i) {
         std::string name{""};
         if (_nodeHandle.getParam(std::string(_nodeName + "/camera" + std::to_string(i) + "/name"), name)) {
             auto stream = _streams.emplace_back(std::make_shared<RtspStream>());
             stream->name = name;
             stream->imageOutputFormat = imgOutputFormat;
+            _nodeHandle.getParam(std::string(_nodeName + "/camera" + std::to_string(i) + "/is_jpeg"), stream->isJpeg);
             std::string name4topic(&name.at(1), name.size()-1); // name without '/'
             stream->pubImage = _nodeHandle.advertise<sensor_msgs::Image>(name4topic + "/image_raw", 1);
             stream->pubVideoInfo = _nodeHandle.advertise<tod_msgs::VideoInfo>(name4topic + "/video_info", 5);
             stream->pubPaketInfo = _nodeHandle.advertise<tod_msgs::PaketInfo>(name4topic + "/paket_info", 100);
 
-            // support for camera names with (2) dots: ros topic names with 'DOT', uris with '.'
+            // support for camera names with dots: ros topic names with 'DOT', uris with '.'
             std::string str2find = "DOT";
-            std::size_t foundDOT1 = stream->name.find(str2find);
-            if (foundDOT1 != std::string::npos)
-                stream->name.replace(foundDOT1, str2find.length(), ".");
-            std::size_t foundDOT2 = stream->name.find(str2find);
-            if (foundDOT2 != std::string::npos)
-                stream->name.replace(foundDOT2, str2find.length(), ".");
+            std::size_t found;
+            while ((found = stream->name.find(str2find)) != std::string::npos) {
+                stream->name.replace(found, str2find.length(), ".");
+            }
         }
     }
 }
@@ -63,11 +62,11 @@ void RtspClients::run() {
             tod_msgs::VideoInfo msg;
             msg.header.stamp = ros::Time::now();
             msg.header.frame_id = stream->name;
-            msg.kbitrate = stream->bitrate_kbit;
-            msg.framerate = stream->framerate;
-            msg.imageHeight = stream->imgHeight_px;
-            msg.imageWidth = stream->imgWidth_px;
-            msg.imageNofPixel = stream->imgHeight_px * stream->imgWidth_px;
+            msg.kbitrate = uint32_t(stream->bitrate_kbit);
+            msg.framerate = uint32_t(stream->framerate);
+            msg.imageHeight = uint32_t(stream->imgHeight_px);
+            msg.imageWidth = uint32_t(stream->imgWidth_px);
+            msg.imageNofPixel = uint32_t(stream->imgHeight_px * stream->imgWidth_px);
             stream->pubVideoInfo.publish(msg);
         }
     }
@@ -114,23 +113,36 @@ void RtspClients::connect_video_client(std::shared_ptr<RtspStream> stream, const
 
     std::string uri = "rtsp://" + vehicleIp + ":" + std::to_string(tod_network::VehiclePorts::RX_VIDEO_RTSP)
                       + stream->name;
-    gchar *pipe_desc = g_strdup_printf("rtspsrc location=%s latency=%d drop-on-latency=true !"
-                                       " identity name=myIdentity signal-handoffs=true !"
-                                       " rtph264depay !"
-                                       " h264parse !"
-                                       " avdec_h264 output-corrupt=false !"
-                                       " videoconvert !"
-                                       " capsfilter caps=video/x-raw,format=%s !"
-                                       " appsink name=mySink sync=false emit-signals=true",
-                                       uri.c_str(), _latency, gstImageFormat.c_str());
+    gchar *pipe_desc_h264 = g_strdup_printf("rtspsrc location=%s latency=%d drop-on-latency=true !"
+                                            " identity name=myIdentity signal-handoffs=true !"
+                                            " rtph264depay !"
+                                            " h264parse !"
+                                            " avdec_h264 output-corrupt=true !"
+                                            " videoconvert !"
+                                            " capsfilter caps=video/x-raw,format=%s !"
+                                            " appsink name=mySink sync=false emit-signals=true",
+                                            uri.c_str(), _latency, gstImageFormat.c_str());
+    gchar *pipe_desc_jpeg = g_strdup_printf("rtspsrc location=%s latency=%d drop-on-latency=true !"
+                                            " identity name=myIdentity signal-handoffs=true !"
+                                            " rtpjpegdepay !"
+                                            " jpegparse !"
+                                            " jpegdec !"
+                                            " videoconvert !"
+                                            " capsfilter caps=video/x-raw,format=%s !"
+                                            " appsink name=mySink sync=false emit-signals=true",
+                                            uri.c_str(), _latency, gstImageFormat.c_str());
 
     GError *error{NULL};
-    stream->pipeline = gst_parse_launch(pipe_desc, &error);
+    if (stream->isJpeg)
+        stream->pipeline = gst_parse_launch(pipe_desc_jpeg, &error);
+    else
+        stream->pipeline = gst_parse_launch(pipe_desc_h264, &error);
     if (error) {
         ROS_ERROR("%s: Something went wrong parsing launch string - Abort!", _nodeName.c_str());
         return;
     }
-    g_free(pipe_desc);
+    g_free(pipe_desc_h264);
+    g_free(pipe_desc_jpeg);
 
     GstElement *theIdentity = gst_bin_get_by_name(GST_BIN(stream->pipeline), "myIdentity");
     if (!theIdentity) {
@@ -163,15 +175,21 @@ void RtspClients::toggle_video_stream(tod_video::ClientConfig &config, uint32_t 
     if (!_connected) return;
     for (auto stream : _streams) {
         if (stream->name == config.camera_name) {
+            GstState currentState;
+            gst_element_get_state(stream->pipeline, &currentState, nullptr, GST_CLOCK_TIME_NONE);
             if (!config.pause) {
-                gst_element_set_state(stream->pipeline, GST_STATE_PLAYING);
-                ROS_INFO("%s Client: Playing stream", config.camera_name.c_str());
+                if (currentState != GST_STATE_PLAYING) {
+                    gst_element_set_state(stream->pipeline, GST_STATE_PLAYING);
+                    ROS_INFO("%s Client: Playing stream", config.camera_name.c_str());
+                }
             } else {
-                gst_element_set_state(stream->pipeline, GST_STATE_PAUSED);
-                ROS_INFO("%s Client: Pausing stream", config.camera_name.c_str());
-                std::lock_guard<std::mutex> lock(stream->mutex);
-                stream->imgHeight_px = 0;
-                stream->imgWidth_px = 0;
+                if (currentState != GST_STATE_PAUSED) {
+                    gst_element_set_state(stream->pipeline, GST_STATE_PAUSED);
+                    ROS_INFO("%s Client: Pausing stream", config.camera_name.c_str());
+                    std::lock_guard<std::mutex> lock(stream->mutex);
+                    stream->imgHeight_px = 0;
+                    stream->imgWidth_px = 0;
+                }
             }
             return;
         }

@@ -8,7 +8,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <nav_msgs/Path.h>
 #include <tod_msgs/Status.h>
-#include <tod_projection_helper/PinholeModel.h>
+#include <tod_helper/camera_models/PinholeModel.h>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>

@@ -8,7 +8,7 @@
 #include <sensor_msgs/LaserScan.h>
 #include <visualization_msgs/Marker.h>
 #include <tod_msgs/ObjectList.h>
-#include "tod_lidar/ObjectListHelper.h"
+#include <tod_helper/object_list/Helpers.h>
 
 class LaserScansDetector {
 public:

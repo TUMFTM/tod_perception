@@ -13,17 +13,23 @@
 
 <build_depend>roscpp</build_depend>
 <build_depend>tf2_ros</build_depend>
+<build_depend>tf2_sensor_msgs</build_depend>
+<build_depend>tf2_geometry_msgs</build_depend>
 <build_depend>sensor_msgs</build_depend>
+<build_depend>grid_map_ros</build_depend>
 <build_depend>tod_msgs</build_depend>
 <build_depend>tod_network</build_depend>
-<build_depend>grid_map_ros</build_depend>
+<build_depend>tod_helper</build_depend>
 
 <build_export_depend>roscpp</build_export_depend>
 <build_export_depend>tf2_ros</build_export_depend>
+<build_export_depend>tf2_sensor_msgs</build_export_depend>
+<build_export_depend>tf2_geometry_msgs</build_export_depend>
 <build_export_depend>sensor_msgs</build_export_depend>
 <build_export_depend>grid_map_ros</build_export_depend>
 <build_export_depend>tod_msgs</build_export_depend>
 <build_export_depend>tod_network</build_export_depend>
+<build_export_depend>tod_helper</build_export_depend>
 
 <exec_depend>roscpp</exec_depend>
 <exec_depend>tod_vehicle_config</exec_depend>

@@ -62,16 +62,19 @@ private:
     void reset_reconfigure_fields();
     void get_config_of_all_streams();
     template <typename T>
-    T request_reconfigure(const T &desCfg, const std::string &name);
+    T request_server_reconfigure(const T &desCfg, const std::string &name);
+    void request_clients_reconfigure_and_update_gui(
+        const tod_video::ClientConfig &config, std::shared_ptr<Streamable> streamable);
 
     struct Streamable {
         std::string name;
-        bool unavailable{false};
+        bool unavailable{false}, streamOnConnect{true};
         QPushButton *button;
         QCheckBox *checkBox;
         tod_video::VideoConfig config;
-        Streamable(std::string &myName, QPushButton *myButton, QCheckBox *myCheckBox)
-            : name(myName), button(myButton), checkBox(myCheckBox) {
+        Streamable(const std::string &myName, const bool myStreamOnConnect,
+                   QPushButton *myButton, QCheckBox *myCheckBox)
+            : name(myName), streamOnConnect(myStreamOnConnect), button(myButton), checkBox(myCheckBox) {
             config.camera_name = myName;
             config.bitrate = config.width = config.height = config.offset_width = config.offset_height = 0;
             config.scaling = tod_video::Video_1p000;

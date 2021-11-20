@@ -2,12 +2,13 @@
 #include "ros/ros.h"
 #include "tod_msgs/VehicleData.h"
 #include <nav_msgs/Path.h>
-#include <tod_helper_functions/VehicleModelHelpers.h>
-#include <tod_helper_functions/VehicleParameters.h>
+#include <tod_helper/vehicle/Model.h>
+#include <tod_helper/vehicle/Parameters.h>
+#include "tod_msgs/VehicleEnums.h"
 
 static std::string _nodeName{""};
 static ros::Publisher _pubVehicleLaneFL, _pubVehicleLaneFR, _pubVehicleLaneRL, _pubVehicleLaneRR;
-static std::unique_ptr<TodHelper::VehicleParameters> params{nullptr};
+static std::unique_ptr<tod_helper::Vehicle::Parameters> params{nullptr};
 
 void callback_vehicle_data(const tod_msgs::VehicleData &msg);
 
@@ -15,7 +16,7 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "OperatorLaneProjection");
     ros::NodeHandle n;
     _nodeName = ros::this_node::getName();
-    params = std::make_unique<TodHelper::VehicleParameters>(n);
+    params = std::make_unique<tod_helper::Vehicle::Parameters>(n);
 
     ros::Subscriber subVehicleData = n.subscribe("/Operator/VehicleBridge/vehicle_data", 5, callback_vehicle_data);
     _pubVehicleLaneFL = n.advertise<nav_msgs::Path>("vehicle_lane_front_left", 5);
@@ -30,6 +31,7 @@ int main(int argc, char **argv) {
 
 void callback_vehicle_data(const tod_msgs::VehicleData &msg) {
     // calc and publish vehicle lane as path
+    int direction{1};
     nav_msgs::Path frontLeftLane, frontRightLane, rearLeftLane, rearRightLane;
     frontLeftLane.header.stamp = frontRightLane.header.stamp =
         rearLeftLane.header.stamp = rearRightLane.header.stamp = ros::Time::now();
@@ -43,27 +45,30 @@ void callback_vehicle_data(const tod_msgs::VehicleData &msg) {
     const double dt_s = 0.050;
     const int steps = static_cast<int>((static_cast<double>(tPred_s) / dt_s));
 
+    if (msg.gearPosition == eGearPosition::GEARPOSITION_REVERSE)
+        direction = -1;
+
     geometry_msgs::PoseStamped pose;
     pose.pose.position.z = 0.0;
     pose.header = frontLeftLane.header;
     pose.pose.orientation.w = 1.0;
 
+    const float rwa = tod_helper::Vehicle::Model::swa2rwa(
+        msg.steeringWheelAngle, params->get_max_swa_rad(), params->get_max_rwa_rad());
     const double distRear = params->get_distance_rear_bumper();
     const double distFront = params->get_distance_front_bumper();
-    const double rwa = VehicleModelHelpers::swa2rwa(
-        msg.steeringWheelAngle, params->get_max_swa_rad(), params->get_max_rwa_rad());
     const double beta = std::atan(distRear * std::tan(rwa) / (distFront + distRear));
     double xCoM{0.0}, yCoM{0.0}, yawCoM{0.0};
     for (int i=0; i < steps; ++i) {
         // propagate CoM position
-        xCoM += dt_s * vel_mps * std::cos(yawCoM + beta);
-        yCoM += dt_s * vel_mps * std::sin(yawCoM + beta);
-        yawCoM += dt_s * vel_mps * std::sin(beta) / distRear;
+        xCoM += direction * dt_s * vel_mps * std::cos(yawCoM + beta);
+        yCoM += direction * dt_s * vel_mps * std::sin(yawCoM + beta);
+        yawCoM += direction * dt_s * vel_mps * std::sin(beta) / distRear;
 
         double xfl, yfl, xfr, yfr, xrl, yrl, xrr, yrr;
-        VehicleModelHelpers::calc_vehicle_front_edges(
+        tod_helper::Vehicle::Model::calc_vehicle_front_edges(
             xCoM, yCoM, yawCoM, distFront, params->get_width(), xfl, yfl, xfr, yfr);
-        VehicleModelHelpers::calc_vehicle_rear_edges(
+        tod_helper::Vehicle::Model::calc_vehicle_rear_edges(
             xCoM, yCoM, yawCoM, distRear, params->get_width(), xrl, yrl, xrr, yrr);
 
         pose.pose.position.x = xfl;

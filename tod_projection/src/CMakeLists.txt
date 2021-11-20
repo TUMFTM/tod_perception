@@ -14,7 +14,6 @@ add_dependencies(OperatorLaneProjection ${${PROJECT_NAME}_EXPORTED_TARGETS} ${ca
 target_link_libraries(OperatorLaneProjection ${catkin_LIBRARIES})
 target_include_directories(OperatorLaneProjection PRIVATE ${catkin_INCLUDE_DIRS})
 
-
 install(TARGETS ${TARGETS}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
     )

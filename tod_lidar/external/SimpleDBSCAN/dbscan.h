@@ -59,7 +59,6 @@ public:
     * @usage: Object.Run() and get the cluster and noise indices from this->Clusters & this->Noise.
     * @pitfall: If you set big eps(search range) and huge density V, then kdtree will be a bottleneck of performance
     * @pitfall: You MUST ensure the data's identicality (TVector* V) during Run(), because DBSCAN just use the reference of data passed in.
-    * @TODO: customize kdtree algorithm or rewrite it ,stop further searching when minimal number which indicates cluster core point condition is satisfied
     */
     int Run(TVector* V, const uint dim, const Float eps, const uint min, const DistanceFunc& disfunc = [](const T& t1, const T& t2)->Float { return 0; });
 
