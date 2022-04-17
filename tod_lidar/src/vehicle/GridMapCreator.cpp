@@ -2,48 +2,40 @@
 #include "GridMapCreator.h"
 
 GridMapCreator::GridMapCreator(ros::NodeHandle &nh) :
-    _nh(nh), _nn(ros::this_node::getName()), _tfListener(_tfBuffer) {
-    for (int i = 0; i <= 10; ++i) {
-        const std::string ns{_nn + "/lidar" + std::to_string(i)};
-        std::string lidarName{""}, paramName{ns + "/name"};
-
-        if (nh.getParam(paramName, lidarName)) {
-            bool lidar3D{true};
-            nh.getParam(ns + "/is_3D", lidar3D);
-
-            if (!lidar3D) {
-                std::string paramGrid{""};
-                bool lidarGrid{false};
-                nh.getParam(ns + "/construct_gridmap_from", lidarGrid);
-
-                if (lidarGrid) {
-                    if (!_gridConstructed) {
-                        std::string paramNs{""}, paramScan{""};
-                        nh.getParam(_nn + "/lidar_topics_namespace", paramNs);
-                        nh.getParam(_nn + "/laser_scan_name", paramScan);
-
-                        _lidarPointCloudPublisher =
-                            nh.advertise<sensor_msgs::PointCloud>("point_cloud", 1, true);
-
-                        _gridMapPublisher = nh.advertise<grid_map_msgs::GridMap>("grid_map", 1, true);
-
-                        _laserScanSubscriber = nh.subscribe(paramNs + lidarName + paramScan, 1,
-                                                            &GridMapCreator::processArrivedLidarScan, this);
-
-                        _odomSubscriber = nh.subscribe("/Vehicle/VehicleBridge/odometry", 1,
-                                                       &GridMapCreator::processArrivedOdomFrame, this);
-                        _gridMapFrameId = "ftm";
-                        loadParamsFromParamServer();
-                        initGridMap();
-                        ROS_INFO("%s: Constructed a gridmap with lidar: %s.", _nn.c_str(), lidarName.c_str());
-                        _gridConstructed = true;
-                    } else {
-                        ROS_WARN("%s: Multiple data layers are not yet supported and additional "
-                                 "gridmap request for %s will be skipped!", _nn.c_str(), lidarName.c_str());
-                        break;
-                    }
-                }
+    _nh(nh),
+    _nn(ros::this_node::getName()),
+    _lidarParams{std::make_unique<tod_core::LidarParameters>(_nh)},
+    _tfListener(_tfBuffer) {
+    bool constructingGridMap{false};
+    for (const auto& lidar : _lidarParams->get_sensors()) {
+        if (lidar.construct_gridmap_from) {
+            if (lidar.is_3D) {
+                ROS_WARN("%s: Constructing grid map from 3D Lidar %s is not yet supported - continuing loop",
+                         _nn.c_str(), lidar.name.c_str());
+                continue;
             }
+            if (constructingGridMap) {
+                ROS_WARN("%s: Constructing grid map with additional layer %s is not yet supported - breaking loop",
+                         _nn.c_str(), lidar.name.c_str());
+                break;
+            }
+
+            _laserScanSubscriber = nh.subscribe(
+                _lidarParams->get_lidar_topics_namespace() + lidar.name + _lidarParams->get_laser_scan_name(), 1,
+                                                &GridMapCreator::processArrivedLidarScan, this);
+
+            _odomSubscriber = nh.subscribe("/Vehicle/VehicleBridge/odometry", 1,
+                                           &GridMapCreator::processArrivedOdomFrame, this);
+
+            _lidarPointCloudPublisher = nh.advertise<sensor_msgs::PointCloud>("point_cloud", 1, true);
+
+            _gridMapPublisher = nh.advertise<grid_map_msgs::GridMap>("grid_map", 1, true);
+
+            _gridMapFrameId = "ftm";
+            loadParamsFromParamServer();
+            initGridMap();
+            constructingGridMap = true;
+            ROS_INFO("%s: Constructing a gridmap from %s.", _nn.c_str(), lidar.name.c_str());
         }
     }
 }

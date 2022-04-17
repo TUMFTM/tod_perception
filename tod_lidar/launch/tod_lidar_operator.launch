@@ -1,18 +1,10 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="vehicleID" default="tum-q7"/>
-
     <group ns="Operator/Lidar">
-        <node name="OperatorLaserScansReceiver" pkg="tod_lidar" type="OperatorLaserScansReceiver" output="screen">
-            <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-        </node>
-
-        <node name="OperatorObjectListsReceiver" pkg="tod_lidar" type="OperatorObjectListsReceiver" output="screen">
-            <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-        </node>
-
-        <node name="OperatorObjectMarkersReceiver" pkg="tod_lidar" type="OperatorObjectMarkersReceiver" output="screen">
-            <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-        </node>
+        <node name="LaserScansReceiver" pkg="tod_lidar" type="LaserScansReceiver" output="screen"/>
+        <node name="ObjectListsReceiver" pkg="tod_lidar" type="ObjectListsReceiver" output="screen"/>
+        <group ns="laser">
+            <node name="ObjectListViz" pkg="tod_helper" type="ObjectListViz" output="screen"/>
+        </group>
     </group>
 </launch>

@@ -1,6 +1,7 @@
 // Copyright 2020 Andreas Schimpe
 #pragma once
 #include <ros/ros.h>
+#include <dynamic_reconfigure/server.h>
 #include <string>
 #include <vector>
 #include <limits>
@@ -9,6 +10,8 @@
 #include <visualization_msgs/Marker.h>
 #include <tod_msgs/ObjectList.h>
 #include <tod_helper/object_list/Helpers.h>
+#include <tod_core/LidarParameters.h>
+#include <tod_lidar/LaserScansDetectorConfig.h>
 
 class LaserScansDetector {
 public:
@@ -17,10 +20,11 @@ public:
     void run();
 
 private:
-    ros::NodeHandle& _nodeHandle;
-    std::string _nodeName;
-    double _xmax2consider, _yminmax2consider, _maxDistanceBetweenPts;
-    int _minNofPts;
+    ros::NodeHandle& _nh;
+    std::string _nn;
+    dynamic_reconfigure::Server<tod_lidar::LaserScansDetectorConfig> _reconfigServer;
+    std::unique_ptr<tod_core::LidarParameters> _lidarParams;
+    tod_lidar::LaserScansDetectorConfig _detectorParams;
 
     struct Detector {
         ros::Subscriber subScan;
@@ -34,6 +38,7 @@ private:
 
     std::vector<std::shared_ptr<Detector>> _detectors;
 
+    void callback_reconfigure(tod_lidar::LaserScansDetectorConfig &config, uint32_t level);
     void callback_laser_scan(const sensor_msgs::LaserScanConstPtr& msg, std::shared_ptr<Detector> detector);
     void polar_to_cartesian(const sensor_msgs::LaserScanConstPtr& msg, PointList &pointsCartesian);
     void filter_driving_corridor(const PointList &points2filter, PointList &filteredPoints);

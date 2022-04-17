@@ -1,27 +1,20 @@
 <?xml version="1.0"?>
 <launch>
-    <arg name="vehicleID" default="tum-q7"/>
-
     <group ns="Vehicle/Lidar">
+        <node name="LaserScansSender" pkg="tod_lidar" type="LaserScansSender" output="screen"/>
+        <node name="ObjectListsSender" pkg="tod_lidar" type="ObjectListsSender" output="screen"/>
+
         <node name="LaserScansDetector" pkg="tod_lidar" type="LaserScansDetector" output="screen">
-            <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-        </node>
-
-        <node name="VehicleLaserScansSender" pkg="tod_lidar" type="VehicleLaserScansSender" output="screen">
-            <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-        </node>
-
-        <node name="VehicleObjectListsSender" pkg="tod_lidar" type="VehicleObjectListsSender" output="screen">
-            <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
-        </node>
-
-        <node name="VehicleObjectMarkersSender" pkg="tod_lidar" type="VehicleObjectMarkersSender" output="screen">
-            <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
+            <param name="min_nof_pts" value="3"/>
+            <param name="max_nof_pts" value="30"/>
+            <param name="max_distance" value="0.49"/>
+            <param name="x_min" value="0.0"/>
+            <param name="x_max" value="15.0"/>
+            <param name="y_min_max" value="8.5"/>
         </node>
 
         <group ns="GridMap">
             <node name="Creator" pkg="tod_lidar" type="GridMapCreator" output="screen">
-                <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-lidar.yaml" />
                 <rosparam command="load" file="$(find tod_lidar)/config/grid_map.yaml" />
             </node>
 

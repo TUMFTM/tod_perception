@@ -12,6 +12,7 @@
 #include <vector>
 #include <memory>
 #include "tod_msgs/Status.h"
+#include "tod_core/CameraParameters.h"
 #include "tod_video/ClientConfig.h"
 #include "tod_video/VideoConfig.h"
 #include "tod_video/BitrateConfig.h"
@@ -42,10 +43,11 @@ private slots:
 
 
 private:
-    ros::NodeHandle &_nodeHandle;
-    std::string _nodeName{""};
+    ros::NodeHandle &_nh;
+    std::string _nn{""};
     ros::Subscriber _subStatusMsg, _subGps;
     ros::Publisher _pubBrPred;
+    std::unique_ptr<tod_core::CameraParameters> _camParams;
     sensor_msgs::NavSatFixConstPtr _gpsMsg{nullptr};
     std::vector<std::shared_ptr<Streamable>> _streamables;
     std::shared_ptr<Streamable> _selectedStreamable{nullptr};
@@ -72,10 +74,10 @@ private:
         QPushButton *button;
         QCheckBox *checkBox;
         tod_video::VideoConfig config;
-        Streamable(const std::string &myName, const bool myStreamOnConnect,
+        Streamable(const std::string &vehicleName, const std::string &operatorName, const bool myStreamOnConnect,
                    QPushButton *myButton, QCheckBox *myCheckBox)
-            : name(myName), streamOnConnect(myStreamOnConnect), button(myButton), checkBox(myCheckBox) {
-            config.camera_name = myName;
+            : name(operatorName), streamOnConnect(myStreamOnConnect), button(myButton), checkBox(myCheckBox) {
+            config.camera_name = operatorName;
             config.bitrate = config.width = config.height = config.offset_width = config.offset_height = 0;
             config.scaling = tod_video::Video_1p000;
         }

@@ -5,7 +5,7 @@
 int main(int argc, char *argv[]) {
     ros::init(argc, argv, "OperatorVideoProjection");
     ros::NodeHandle nodeHandle;
-    VehicleLaneProjection projection(nodeHandle);
+    VideoProjection projection(nodeHandle);
     projection.run();
     return 0;
 }

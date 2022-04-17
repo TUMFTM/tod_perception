@@ -1,8 +1,7 @@
 # tod_lidar
 
-This ROS package provides nodes to
-  * transmit the raw and processed data to the operator
-  * process laser scan data (grid map, object detection) on the vehicle side
+This ROS package provides nodes to transmit raw and processed laser scan data from the vehicle to the operator side.
+Processing on the vehicle side includes creation of a grid map and object detection as specified in the `sensors-lidar.yaml` of the vehicle config.
 
 
 ### Dependencies
@@ -22,12 +21,15 @@ The nodes of the package, and their functionalities are documented in the README
   [tod_vehicle_config](https://github.com/TUMFTM/tod_vehicle_interface/tree/master/tod_vehicle_config) package.
   * Install the `tod_lidar` dependencies and those of the required `tod_*` packages (see above).
   * Build and source the workspace.
-    ```
+    ```bash
     catkin build tod_lidar # with optional args to disable build of nodes on respective side: -DVEHICLE=OFF, -DOPERATOR=OFF
     source devel/setup.bash # or `setup.zsh`, depending on your shell
     ```
-  * Set your `vehicleID` and the respective side (vehicle or operator) in the `tod_lidar.launch` and launch the nodes.
+  * Launch the nodes of the needed side(s) using one of the following.
+    ```bash
+    roslaunch tod_lidar tod_lidar_vehicle.launch
+    roslaunch tod_lidar tod_lidar_operator.launch
+    roslaunch tod_lidar tod_lidar_both.launch
     ```
-    roslaunch tod_lidar tod_lidar.launch
-    ```
+  * If not yet set, set the `/vehicleID` parameter using `rosparam set /vehicleID your-vehicle-id`.
   * For the function of the nodes, see the documentation under `src/`. 

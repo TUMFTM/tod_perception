@@ -25,6 +25,7 @@
 #include <memory>
 #include <chrono>
 #include <limits>
+#include <tod_core/LidarParameters.h>
 
 struct PolarPoint {
     double distance;
@@ -38,6 +39,7 @@ public:
 private:
     ros::NodeHandle _nh;
     std::string _nn;
+    std::unique_ptr<tod_core::LidarParameters> _lidarParams;
     ros::Publisher _gridMapPublisher, _gridMapVisualPublisher, _lidarPointCloudPublisher;
     ros::Subscriber _laserScanSubscriber, _odomSubscriber;
     tf2_ros::Buffer _tfBuffer;
@@ -56,7 +58,6 @@ private:
     std::vector<geometry_msgs::Point32> _globalLaserScanPoints32;
     sensor_msgs::PointCloud _globalLaserScanPointCloud;
 
-    bool _gridConstructed{false};
     double _gridMapWidthInM;
     double _gridMapHeightInM;
     double _gridMapCellSizeInM;

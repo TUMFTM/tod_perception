@@ -1,15 +1,11 @@
 <?xml version="1.0"?>
 <launch>
 
-<arg name="vehicleID" default="tum-q7"/>
 <arg name="adaptVideoParamsEnabled" default="false"/>
 
 <group ns="/Vehicle/Video">
 
 <node name="RtspServer" type="VehicleRtspServer" pkg="tod_video" output="screen">
-    <rosparam command="load"
-        file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-camera.yaml"/>
-    <param name="debug" value="false"/>
     <param name="bitrate" value="1000"/>
 </node>
 
@@ -20,8 +16,6 @@
 
 <node pkg="tod_video" name="BandwidthManager" type="VehicleBandwidthManager" output="screen"
     if="$(eval adaptVideoParamsEnabled)">
-    <rosparam command="load" file="$(find tod_vehicle_config)/vehicle_config/$(arg vehicleID)/sensors-camera.yaml" />
-    <param name="vehicleID" value="$(arg vehicleID)"/>
     <param name="debug" value="false"/>
 </node>
 
