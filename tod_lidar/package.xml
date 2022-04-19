@@ -4,7 +4,7 @@
 <version>1.0.0</version>
 <description>The tod_lidar package</description>
 
-<maintainer email="feiler@ftm.mw.tum.de">Johannes Feiler</maintainer>
+<maintainer email="johannes.feiler@tum.de">Johannes Feiler</maintainer>
 <maintainer email="andreas.schimpe@tum.de">Andreas Schimpe</maintainer>
 
 <license>LGPLv3</license>
