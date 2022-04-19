@@ -2,57 +2,49 @@
 #include "LaserScansDetector.h"
 
 LaserScansDetector::LaserScansDetector(ros::NodeHandle& nodeHandle) :
-    _nodeHandle(nodeHandle), _nodeName(ros::this_node::getName()),
-    _xmax2consider{15.0}, _yminmax2consider{8.5},
-    _maxDistanceBetweenPts{0.49}, _minNofPts{3} {
-    for (int i=0; i <= 10; ++i) {
-        std::string lidarName{""}, paramName{_nodeName + "/lidar" + std::to_string(i) + "/name"};
-
-        if (_nodeHandle.getParam(paramName, lidarName)) {
-            std::string is3Dname{_nodeName + "/lidar" + std::to_string(i) + "/is_3D"},
-                        detectOn{_nodeName + "/lidar" + std::to_string(i) + "/detect_on"};
-            bool lidarIs3d{true}, detectIsOn{false};
-
-            if (!_nodeHandle.getParam(is3Dname, lidarIs3d))
-                ROS_ERROR("%s: Object detector not supported yet for the 3D Lidar: %s.",
-                          _nodeName.c_str(), is3Dname.c_str());
-
-            if (!lidarIs3d) {
-                _nodeHandle.getParam(detectOn, detectIsOn);
-                if (detectIsOn) {
-                    std::string paramNs{""}, paramScan{""};
-                    nodeHandle.getParam(_nodeName + "/lidar_topics_namespace", paramNs);
-                    nodeHandle.getParam(_nodeName + "/laser_scan_name", paramScan);
-
-                    // lidar name for frame id without '/'
-                    auto dtc = _detectors.emplace_back(
-                        std::make_shared<Detector>(std::string(&lidarName.at(1), lidarName.size()-1)));
-                    std::string laserScanTopic{paramNs + lidarName + paramScan};
-
-                    std::cout << paramNs + lidarName + paramScan << std::endl;
-                    dtc->subScan = _nodeHandle.subscribe<sensor_msgs::LaserScan>(
-                            laserScanTopic, 1, boost::bind(&LaserScansDetector::callback_laser_scan, this, _1,
-                                                           _detectors.back()));
-                    std::string objectListTopic{paramNs + lidarName + "/object_list"};
-                    dtc->pubObjectList = _nodeHandle.advertise<tod_msgs::ObjectList>(objectListTopic, 1);
-                    std::string objectMarkerTopic{paramNs + lidarName + "/object_marker"};
-                    dtc->pubVizMarker = _nodeHandle.advertise<visualization_msgs::Marker>(objectMarkerTopic, 100);
-                    ROS_INFO("%s: Created detector for lidar: %s.", _nodeName.c_str(), lidarName.c_str());
-                }
-                else
-                    continue;
-            }
+    _nh(nodeHandle),
+    _nn(ros::this_node::getName()),
+    _lidarParams{std::make_unique<tod_core::LidarParameters>(_nh)} {
+    for (const auto& lidarSensor : _lidarParams->get_sensors()) {
+        if (!lidarSensor.is_3D && lidarSensor.detect_on) {
+            std::string topicNs{_lidarParams->get_lidar_topics_namespace() + lidarSensor.name};
+            // lidar name for frame id without '/'
+            auto dtc = _detectors.emplace_back(
+                std::make_shared<Detector>(std::string(&lidarSensor.name.at(1), lidarSensor.name.size()-1)));
+            dtc->subScan = _nh.subscribe<sensor_msgs::LaserScan>(
+                topicNs + _lidarParams->get_laser_scan_name(), 1,
+                boost::bind(&LaserScansDetector::callback_laser_scan, this, _1, _detectors.back()));
+            dtc->pubObjectList = _nh.advertise<tod_msgs::ObjectList>(topicNs + "/object_list", 1);
+            dtc->pubVizMarker = _nh.advertise<visualization_msgs::Marker>(topicNs + "/object_marker", 100);
+            ROS_INFO("%s: Created detector for lidar: %s.", _nn.c_str(), lidarSensor.name.c_str());
         }
     }
+
+    _reconfigServer.setCallback(boost::bind(&LaserScansDetector::callback_reconfigure, this, _1, _2));
 }
 
 void LaserScansDetector::run() {
-    ros::MultiThreadedSpinner spinner(uint32_t(_detectors.size())); // multi threading
+    ros::MultiThreadedSpinner spinner(uint32_t(_detectors.size()));
     spinner.spin();
 }
 
+void LaserScansDetector::callback_reconfigure(tod_lidar::LaserScansDetectorConfig &config, uint32_t level) {
+    if (config.min_nof_pts > config.max_nof_pts) {
+        ROS_WARN("%s: min_nof_pts (%d) cannot be larger than max_nof_pts (%d), set min_nof_pts to max_nof_pts",
+                 _nn.c_str(), config.min_nof_pts, config.max_nof_pts);
+        config.min_nof_pts = config.max_nof_pts;
+    }
+    if (config.x_min + 0.5 > config.x_max) {
+        const double bad_x_min = config.x_min;
+        config.x_min = config.x_max - 0.5;
+        ROS_WARN("%s: x_min (%f) close to or larger than x_max (%f), set x_min to %f",
+                 _nn.c_str(), bad_x_min, config.x_max, config.x_min);
+    }
+    _detectorParams = config;
+}
+
 void LaserScansDetector::callback_laser_scan(
-        const sensor_msgs::LaserScanConstPtr& msg, std::shared_ptr<Detector> detector) {
+    const sensor_msgs::LaserScanConstPtr& msg, std::shared_ptr<Detector> detector) {
     std::vector<Point> pointsCartesian;
     polar_to_cartesian(msg, pointsCartesian);
     if (pointsCartesian.empty())
@@ -94,8 +86,8 @@ void LaserScansDetector::polar_to_cartesian(const sensor_msgs::LaserScanConstPtr
 void LaserScansDetector::filter_driving_corridor(const PointList &points2filter, PointList &filteredPoints) {
     filteredPoints.clear();
     for (const Point &pt : points2filter) {
-        if (-_yminmax2consider <= pt.y && pt.y <= _yminmax2consider &&
-            0.0 <= pt.x && pt.x <= _xmax2consider) {
+        if (-_detectorParams.y_min_max <= pt.y && pt.y <= _detectorParams.y_min_max &&
+            _detectorParams.x_min <= pt.x && pt.x <= _detectorParams.x_max) {
             filteredPoints.emplace_back(pt);
         }
     }
@@ -114,10 +106,10 @@ void LaserScansDetector::find_clusters(const PointList &points2cluster, std::vec
 
     std::vector<int> newCluster;
     for (int i=0; i < points2cluster.size(); ++i) {
-        if (distsBetweenPts.at(i) <= _maxDistanceBetweenPts) {
+        if (distsBetweenPts.at(i) <= _detectorParams.max_distance) {
             newCluster.push_back(i);
         } else {
-            if (newCluster.size() >= _minNofPts) {
+            if (_detectorParams.min_nof_pts <= newCluster.size() && newCluster.size() <= _detectorParams.max_nof_pts) {
                 all_clusters.push_back(newCluster);
             }
             newCluster.clear();
@@ -125,12 +117,13 @@ void LaserScansDetector::find_clusters(const PointList &points2cluster, std::vec
         }
     }
 
-    if (newCluster.size() >= _minNofPts)
+    if (_detectorParams.min_nof_pts <= newCluster.size() && newCluster.size() <= _detectorParams.max_nof_pts) {
         all_clusters.push_back(newCluster);
+    }
 }
 
 void LaserScansDetector::calc_bounding_boxes(
-        const PointList &points, const std::vector<IdxList> &clusters, tod_msgs::ObjectList &msg) {
+    const PointList &points, const std::vector<IdxList> &clusters, tod_msgs::ObjectList &msg) {
     msg.objectList.clear();
     for (int i=0; i < clusters.size(); ++i) {
         std::vector<Point> pointsInCluster;
@@ -141,7 +134,7 @@ void LaserScansDetector::calc_bounding_boxes(
 }
 
 void LaserScansDetector::publish_object_list_marker(
-        const tod_msgs::ObjectList &msg, std::shared_ptr<Detector> detector) {
+    const tod_msgs::ObjectList &msg, std::shared_ptr<Detector> detector) {
     std::vector<visualization_msgs::Marker> markers = tod_helper::ObjectList::to_marker_vector(msg.objectList);
     for (auto& marker : markers) {
         marker.header.frame_id = detector->name;
@@ -151,12 +144,13 @@ void LaserScansDetector::publish_object_list_marker(
 
 void LaserScansDetector::get_points_in_cluster(const PointList &allPoints, const IdxList &cluster, PointList &points) {
     points.clear();
-    for (int idx : cluster)
+    for (int idx : cluster) {
         points.emplace_back(allPoints.at(idx));
+    }
 }
 
 void LaserScansDetector::create_object(
-        const PointList &pointsInCluster, const int clusterIndex, tod_msgs::ObjectData &object) {
+    const PointList &pointsInCluster, const int clusterIndex, tod_msgs::ObjectData &object) {
     const Point &ptLeft = pointsInCluster.front();
     const Point &ptRight = pointsInCluster.back();
     Point tangent{ptRight.x - ptLeft.x,

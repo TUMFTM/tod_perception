@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+    <include file="$(find tod_lidar)/launch/tod_lidar_vehicle.launch"/>
+    <include file="$(find tod_lidar)/launch/tod_lidar_operator.launch"/>
+</launch>

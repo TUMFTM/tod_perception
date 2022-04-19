@@ -7,6 +7,7 @@
 #include <tod_video/VideoConfig.h>
 #include <tod_helper/camera_models/PinholeModel.h>
 #include <tod_helper/camera_models/OcamModel.h>
+#include <tod_core/CameraParameters.h>
 #include <numeric>
 #include <algorithm>
 #include <string>
@@ -23,7 +24,10 @@ private:
         tod_video::VideoConfig config;
         int bitrateDemand{0}, bitrateAllocated{0};
         int optimalResolutionIndex{-1};
-        explicit VideoStream(const std::string &myName) : name(myName) { }
+        explicit VideoStream(const tod_core::CameraParameters::CameraSensor &cam) :
+            name{cam.vehicle_name},
+            transitionBitrates{cam.transition_bitrates},
+            scalings{cam.scalings} { }
     };
 
 public:
@@ -32,10 +36,11 @@ public:
     void run();
 
 private:
-    ros::NodeHandle &_nodeHandle;
+    ros::NodeHandle& _nh;
+    std::string _nn;
     ros::Subscriber _subStatus;
     dynamic_reconfigure::Server<tod_video::BitrateConfig> _reconfigServer;
-    std::string _nodeName;
+    std::unique_ptr<tod_core::CameraParameters> _camParams;
     std::vector<std::shared_ptr<VideoStream>> _streams;
     bool _connected{false};
     uint8_t _currentVidCtrlMode{tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE};

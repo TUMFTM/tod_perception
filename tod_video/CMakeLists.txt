@@ -16,6 +16,8 @@ find_package(catkin REQUIRED COMPONENTS
     tod_msgs
     tod_network
     tod_helper
+    tod_core
+
     )
 find_package(Threads REQUIRED)
 find_package(PahoMqttCpp REQUIRED)
@@ -32,7 +34,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
     INCLUDE_DIRS # include
     # LIBRARIES ${PROJECT_NAME}
-    CATKIN_DEPENDS roscpp dynamic_reconfigure sensor_msgs geometry_msgs tod_msgs tod_network tod_helper
+    CATKIN_DEPENDS roscpp dynamic_reconfigure sensor_msgs geometry_msgs tod_msgs tod_network tod_helper tod_core
     # DEPENDS system_lib
     )
 

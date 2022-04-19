@@ -3,40 +3,41 @@
 #include <ui_SceneManager.h>
 #include <iostream>
 
-SceneManager::SceneManager(ros::NodeHandle &nodeHandle, QApplication &app, QWidget *parent)
-    : QMainWindow(parent), _nodeHandle(nodeHandle), _nodeName{ros::this_node::getName()}, _app(app) {
+SceneManager::SceneManager(ros::NodeHandle &nodeHandle, QApplication &app, QWidget *parent) :
+    QMainWindow(parent),
+    _nh(nodeHandle),
+    _nn{ros::this_node::getName()},
+    _camParams{std::make_unique<tod_core::CameraParameters>(_nh)},
+    _app(app) {
+    if (!_nh.getParam(_nn + "/adaptVideoParamsEnabled", _adaptVideoParamsEnabled))
+        ROS_ERROR("%s: Could not get param adaptVideoParamsEnabled", _nn.c_str());
 
-    if (!_nodeHandle.getParam(_nodeName + "/adaptVideoParamsEnabled", _adaptVideoParamsEnabled))
-        ROS_ERROR("%s: Could not get param adaptVideoParamsEnabled", _nodeName.c_str());
-
-    _subStatusMsg = _nodeHandle.subscribe("/Operator/Manager/status_msg", 5,
+    _subStatusMsg = _nh.subscribe("/Operator/Manager/status_msg", 5,
                                           &SceneManager::callback_status_msg, this);
 
     if (_adaptVideoParamsEnabled) {
-        _subGps = _nodeHandle.subscribe<sensor_msgs::NavSatFix>(
+        _subGps = _nh.subscribe<sensor_msgs::NavSatFix>(
             "/Operator/VehicleBridge/gps/fix", 5, [&](const auto &msg) {
                 _gpsMsg = msg;
             });
-        _pubBrPred = _nodeHandle.advertise<geometry_msgs::PointStamped>("bitrate_desired_on_gps", 5);
+        _pubBrPred = _nh.advertise<geometry_msgs::PointStamped>("bitrate_desired_on_gps", 5);
     }
 
-    // get cameras to stream from ros parameter server
-    struct NameAndStreamOnConnect { std::string name; bool streamOnConnect{true}; };
+    struct NameAndStreamOnConnect { std::string vehicle_name; std::string operator_name; bool streamOnConnect{true}; };
     std::vector<NameAndStreamOnConnect> cams;
-    for (int i=0; i <= 10; ++i) {
-        std::string camName{""};
-        if (_nodeHandle.getParam(_nodeName + "/camera" + std::to_string(i) + "/name", camName)) {
-            std::string str2find = "DOT";
-            std::size_t found;
-            // support for camera names with dots: name with DOT, uri with .
-            while ((found = camName.find(str2find)) != std::string::npos) {
-                camName.replace(found, str2find.length(), ".");
-            }
-            // element to create streamable from later
-            auto& cam = cams.emplace_back();
-            cam.name = camName;
-            _nodeHandle.getParam(std::string(_nodeName + "/camera" + std::to_string(i) + "/stream_on_connect"),
-                                 cam.streamOnConnect);
+    for (const auto& cam : _camParams->get_sensors()) {
+        auto& camToInitialize = cams.emplace_back();
+        camToInitialize.vehicle_name = cam.vehicle_name;
+        camToInitialize.operator_name = cam.operator_name;
+        camToInitialize.streamOnConnect = cam.stream_on_connect;
+        // support for camera names with dots: name with DOT, uri with .
+        std::string str2find = "DOT";
+        std::size_t found;
+        while ((found = camToInitialize.vehicle_name.find(str2find)) != std::string::npos) {
+            camToInitialize.vehicle_name.replace(found, str2find.length(), ".");
+        }
+        while ((found = camToInitialize.operator_name.find(str2find)) != std::string::npos) {
+            camToInitialize.operator_name.replace(found, str2find.length(), ".");
         }
     }
 
@@ -48,11 +49,11 @@ SceneManager::SceneManager(ros::NodeHandle &nodeHandle, QApplication &app, QWidg
     for (int i=0; i < cams.size(); ++i) {
         const NameAndStreamOnConnect& cam = cams.at(i);
         _streamables.emplace_back(std::make_shared<Streamable>(
-            cam.name, cam.streamOnConnect, new QPushButton(cam.name.c_str(), this),
-            new QCheckBox(cam.name.c_str(), this)));
+            cam.vehicle_name, cam.operator_name, cam.streamOnConnect, new QPushButton(cam.operator_name.c_str(), this),
+            new QCheckBox(cam.operator_name.c_str(), this)));
         // push button
         _streamables.at(i)->button->setGeometry(horOffs, verOffs+i*verStep, 200, buttonHeight);
-        _streamables.at(i)->button->setText(cam.name.c_str());
+        _streamables.at(i)->button->setText(cam.operator_name.c_str());
         _streamables.at(i)->button->setToolTip("Select camera to reconfigure");
         _streamables.at(i)->button->setFont(QFont("Ubuntu", 12, 60, false));
         _streamables.at(i)->button->setPalette(QPalette(QColor(Qt::lightGray)));
@@ -348,8 +349,7 @@ void SceneManager::get_config_of_all_streams() {
         _bitrateSum = 0;
         for (auto streamable : _streamables) {
             // request video config from rtsp server
-            tod_video::VideoConfig cfg;
-            cfg.camera_name = streamable->name;
+            tod_video::VideoConfig cfg = streamable->config;
             cfg.width = cfg.height = -1; // server replies with current config on this
             streamable->config = request_server_reconfigure(cfg, "VideoConfigSend");
             if (streamable->config.paused) {
@@ -378,7 +378,7 @@ T SceneManager::request_server_reconfigure(const T &desCfg, const std::string &n
     dynamic_reconfigure::ReconfigureResponse resp;
     desCfg.__toMessage__(req.config);
     if (!ros::service::call("/Operator/Video/" + name + "/set_parameters", req, resp))
-        ROS_ERROR("%s: ROS service call to %s failed.", _nodeName.c_str(), name.c_str());
+        ROS_ERROR("%s: ROS service call to %s failed.", _nn.c_str(), name.c_str());
     T actCfg;
     actCfg.__fromMessage__(resp.config);
     return actCfg;
@@ -390,7 +390,7 @@ void SceneManager::request_clients_reconfigure_and_update_gui(
     dynamic_reconfigure::ReconfigureResponse resp;
     config.__toMessage__(req.config);
     if (!ros::service::call("/Operator/Video/RtspClients/set_parameters", req, resp))
-        ROS_ERROR("%s: failed to call service", _nodeName.c_str());
+        ROS_ERROR("%s: failed to call service", _nn.c_str());
     else
         streamable->config.paused = config.pause;
     std::string mode{""};

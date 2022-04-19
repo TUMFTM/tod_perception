@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0.2)
 set(PROJECT_NAME tod_lidar)
 project(${PROJECT_NAME})
 
@@ -8,11 +8,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(catkin REQUIRED COMPONENTS
-    roscpp tf2_ros tf2_sensor_msgs tf2_geometry_msgs sensor_msgs grid_map_ros tod_msgs tod_network tod_helper)
+    roscpp dynamic_reconfigure tf2_ros tf2_sensor_msgs tf2_geometry_msgs sensor_msgs grid_map_ros tod_msgs tod_network tod_helper tod_core)
+
+generate_dynamic_reconfigure_options(
+    cfg/LaserScansDetector.cfg
+    )
 
 catkin_package(
     # INCLUDE_DIRS include
-    CATKIN_DEPENDS roscpp tf2_ros tf2_sensor_msgs tf2_geometry_msgs sensor_msgs grid_map_ros tod_msgs tod_network tod_helper
+    CATKIN_DEPENDS roscpp dynamic_reconfigure tf2_ros tf2_sensor_msgs tf2_geometry_msgs sensor_msgs grid_map_ros tod_msgs tod_network tod_helper tod_core
 )
 
 option(VEHICLE "Build vehicle targets" ON)

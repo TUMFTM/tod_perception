@@ -9,6 +9,8 @@
 #include <nav_msgs/Path.h>
 #include <tod_msgs/Status.h>
 #include <tod_helper/camera_models/PinholeModel.h>
+#include <tod_core/LidarParameters.h>
+#include <tod_core/CameraParameters.h>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
@@ -28,10 +30,10 @@ enum ProjectionType {
     NONE = 99
 };
 
-class VehicleLaneProjection {
+class VideoProjection {
 public:
-    explicit VehicleLaneProjection(ros::NodeHandle& nodeHandle);
-    ~VehicleLaneProjection() {}
+    explicit VideoProjection(ros::NodeHandle& nodeHandle);
+    ~VideoProjection() {}
     void run();
 
 private:
@@ -39,12 +41,15 @@ private:
     struct ProjectionStream;
     typedef std::vector<geometry_msgs::PoseStamped> LaserScan;
 
-    std::string _nodeName{""};
+    ros::NodeHandle& _nh;
+    std::string _nn{""};
+    std::unique_ptr<tod_core::CameraParameters> _camParams;
+    std::unique_ptr<tod_core::LidarParameters> _lidarParams;
     nav_msgs::Path _vehicleLaneLeft, _vehicleLaneRight;
     std::vector<std::shared_ptr<LaserScan>> _scansToProject;
     tod_msgs::Status _statusMsg;
     tf2_ros::Buffer _tfBuffer;
-    tf2_ros::TransformListener _transformListener;
+    tf2_ros::TransformListener _tfListener;
     std::mutex _mutex;
     std::map<std::string, ros::Subscriber> _subMap;
     std::vector<std::shared_ptr<ProjectionStream>> _projections;

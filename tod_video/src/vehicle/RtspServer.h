@@ -11,6 +11,7 @@
 #include <tod_video/VideoConfig.h>
 #include <tod_msgs/Status.h>
 #include <tod_network/connection_configs.h>
+#include <tod_core/CameraParameters.h>
 #include <dynamic_reconfigure/server.h>
 #include <string>
 #include <algorithm>
@@ -24,14 +25,17 @@ public:
     void run();
 
 private:
-    ros::NodeHandle &_nodeHandle;
-    std::string _nodeName{""};
+    ros::NodeHandle &_nh;
+    std::string _nn{""};
     ros::Subscriber _subsStatus;
     dynamic_reconfigure::Server<tod_video::VideoConfig> _reconfigServer;
+    std::unique_ptr<tod_core::CameraParameters> _camParams;
     struct RtspStream;
     std::vector<std::shared_ptr<RtspStream>> _streams;
     bool _operatorConnected{false};
     int _defaultBitrate{1000};
+
+    std::string get_hostname();
 
     void factory_gst_video_pipeline(std::shared_ptr<RtspStream> stream,
                                     GstRTSPMountPoints *_gstMounts);

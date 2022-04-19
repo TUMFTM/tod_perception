@@ -6,21 +6,40 @@
 #include "tod_network/mqtt_client.h"
 #include "tod_network/connection_configs.h"
 #include "tod_msgs/Status.h"
+#include "tod_core/CameraParameters.h"
 
 static std::unique_ptr<tod_network::MqttClient> _mqttClientVideo{nullptr};
 static std::unique_ptr<tod_network::MqttClient> _mqttClientBitrate{nullptr};
 static std::string _nodeName{""};
+static std::string _envHostname{""};
 static bool _connected{false};
 static uint8_t _controlMode{tod_msgs::Status::VIDEO_RATE_CONTROL_MODE_SINGLE};
+std::unique_ptr<tod_core::CameraParameters> _camParams;
+std::vector<tod_core::CameraParameters::CameraSensor> cameras;
 
 void callback_status_msg(const tod_msgs::Status &msg);
 void receive_desired_video_config(mqtt::const_message_ptr msg);
 void receive_desired_bitrate_config(mqtt::const_message_ptr msg);
+std::string get_hostname();
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "VehicleVidStreamCfgReceive");
     ros::NodeHandle n;
+
+    _camParams = std::make_unique<tod_core::CameraParameters>(n);
     _nodeName = ros::this_node::getName();
+
+    _envHostname = get_hostname();
+
+    for (const auto& camera : _camParams->get_sensors()) {
+        if (camera.hostname != "" && _envHostname != "") { // Check if hostnames are specified
+            if (camera.hostname != _envHostname) // Check if camera should start on desired host
+                continue;
+        }
+        // Create Stream
+        cameras.push_back(camera);
+    }
+
     bool debug = false;
     n.getParam(_nodeName + "/debug", debug);
     if (debug) // print ROS_DEBUG
@@ -28,7 +47,6 @@ int main(int argc, char **argv) {
             ros::console::notifyLoggerLevelsChanged();
 
     ros::Subscriber subStatusMsg = n.subscribe("/Vehicle/Manager/status_msg", 5, callback_status_msg);
-
     ros::spin();
 
     return 0;
@@ -39,11 +57,11 @@ void callback_status_msg(const tod_msgs::Status &msg) {
     if (connected && !_connected) {
         // connected to vehicle
         _mqttClientVideo = std::make_unique<tod_network::MqttClient>(
-            msg.operator_broker_ip_address, _nodeName + "1");
+            msg.operator_broker_ip_address, _nodeName + "_" + _envHostname + "1");
         _mqttClientVideo->subscribe(tod_network::MqttTopics::DesiredVideoConfig, 1,
                                     &receive_desired_video_config);
         _mqttClientBitrate = std::make_unique<tod_network::MqttClient>(
-            msg.operator_broker_ip_address, _nodeName + "2");
+            msg.operator_broker_ip_address, _nodeName + "_" + _envHostname + "2");
         _mqttClientBitrate->subscribe(tod_network::MqttTopics::DesiredBitrateConfig, 1,
                                       &receive_desired_bitrate_config);
         ROS_DEBUG("%s: Subscribed to mqtt topics %s and %s!", _nodeName.c_str(),
@@ -79,24 +97,60 @@ void receive_desired_video_config(mqtt::const_message_ptr msg) {
     ros::serialization::Serializer<dynamic_reconfigure::Config>::read(stream, msgRos);
     tod_video::VideoConfig desiredConfig;
     desiredConfig.__fromMessage__(msgRos);
+
+
+    bool relevantForHost{false};
+    std::string desiredVehicleName{""};
+    std::string desiredOperatorName{""};
+    for (const auto& camera : cameras) {
+        if (desiredConfig.camera_name == camera.operator_name) {
+            relevantForHost = true;
+            desiredVehicleName = camera.vehicle_name;
+            desiredOperatorName = camera.operator_name;
+        }
+    }
+    if (!relevantForHost) {return; }
+
     ROS_DEBUG("%s: Received new desired config for camera %s on mqtt topic %s!",
               _nodeName.c_str(), desiredConfig.camera_name.c_str(), msg->get_topic().c_str());
 
     // request desired video stream config at rtsp server via ros service
+    desiredConfig.camera_name = desiredVehicleName;
     dynamic_reconfigure::ReconfigureRequest req;
     dynamic_reconfigure::ReconfigureResponse resp;
     desiredConfig.__toMessage__(req.config);
+
     if (!ros::service::call("/Vehicle/Video/RtspServer/set_parameters", req, resp))
         ROS_ERROR("%s: calling ros service to reconfigure video stream %s failed",
                   _nodeName.c_str(), desiredConfig.camera_name.c_str());
 
+
+    tod_video::VideoConfig actualConfig;
+    actualConfig.__fromMessage__(resp.config);
+    actualConfig.camera_name = desiredOperatorName;
+    actualConfig.__toMessage__(resp.config);
     // respond with actual config back to operator via mqtt
     ros::SerializedMessage serializedConfig = ros::serialization::serializeMessage(resp.config);
     _mqttClientVideo->publish(tod_network::MqttTopics::ActualVideoConfig, 1,
                               (char*) serializedConfig.message_start, serializedConfig.num_bytes);
+
     ROS_DEBUG("%s: Sent actual encoder config of camera %s back to operator on mqtt topic %s!",
-              _nodeName.c_str(), desiredConfig.camera_name.c_str(),
-              tod_network::MqttTopics::ActualVideoConfig.c_str());
+              _nodeName.c_str(), actualConfig.camera_name.c_str(), tod_network::MqttTopics::ActualVideoConfig.c_str());
+}
+
+std::string get_hostname() {
+    if (const char* env_p = std::getenv("HOSTNAME")) {
+        std::stringstream hostname;
+        hostname << env_p;
+        std::vector<std::string> seglist;
+        std::string segment;
+        while (std::getline(hostname, segment, '-')) {
+            seglist.push_back(segment);
+        }
+        return seglist.back();
+    } else {
+        return "";
+    }
 }
 
 void receive_desired_bitrate_config(mqtt::const_message_ptr msg) {
